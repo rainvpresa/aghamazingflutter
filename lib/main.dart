@@ -1,21 +1,33 @@
 // lib/main.dart
 
 import 'package:flutter/material.dart';
-import 'login_screen.dart';  // Import the login screen
+import 'package:aghamazing/welcome_screen.dart'; // package import
+import 'login_screen.dart';
+import 'register_screen.dart';
+import 'otp_screen.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Login App',  // App title
+      title: 'AGHAMazing',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,  // Default app theme color
+        primarySwatch: Colors.blue,
       ),
-      home: LoginScreen(),  // Set the home screen to LoginScreen
+      // Show the welcome screen first (non-const instance)
+      home: WelcomeScreen(),
+        routes: {
+          '/login': (_) => const LoginScreen(),
+          '/register': (_) => const RegisterScreen(),
+          '/otp': (_) => const OtpScreen(),
+        }
     );
   }
 }
