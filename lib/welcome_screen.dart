@@ -22,49 +22,60 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              _bg,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stack) => Container(color: Colors.grey.shade200),
+      body: SizedBox.expand(
+        child: Stack(
+          children: [
+            // Background image
+            Positioned.fill(
+              child: Image.asset(
+                _bg,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stack) =>
+                    Container(color: Colors.grey.shade200),
+              ),
             ),
-          ),
 
-          // Only show the Start button over the background
-          Align(
-            alignment: const Alignment(0.0, 0.25),
-            child: SizedBox(
-              width: 160,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1866B2),
-                  elevation: 6,
-                  shadowColor: Colors.black45,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+            // Centered button
+            Center(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).size.height * 0.2,
                 ),
-                child: const Text(
-                  'Start',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                child: SizedBox(
+                  width: 160,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1866B2),
+                      elevation: 4,
+                      shadowColor: Colors.black45,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 14,
+                        horizontal: 20,
+                      ),
+                    ),
+                    child: const Text(
+                      'Start',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

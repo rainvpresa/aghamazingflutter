@@ -1,12 +1,12 @@
 import 'package:aghamazing/services/auth_api.dart';
 
 // Create a single shared instance of AuthApi for the app.
-// Replace the URLs below with your API endpoints (same as Unity).
+// Replace the URLs below with your API endpoints.
 final AuthApi authApi = AuthApi(
   registerUrl: 'https://unauthorised-boyce-telegrammatic.ngrok-free.dev/api/auth/registration/',
   loginUrl: 'https://unauthorised-boyce-telegrammatic.ngrok-free.dev/api/auth/login/',
   otpRequestUrl: 'https://unauthorised-boyce-telegrammatic.ngrok-free.dev/api/auth/otp/request/',
   otpVerifyUrl: 'https://unauthorised-boyce-telegrammatic.ngrok-free.dev/api/otp/verify/',
-  timeout: const Duration(seconds: 10),
+  timeout: const Duration(seconds: 40),
   allowBadCertificateInDebug: true,
 );

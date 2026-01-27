@@ -29,5 +29,6 @@ flutter:
   assets:
     - assets/images/pngs/
     - assets/images/backgrounds/
+    - assets/images/avatars/
     - assets/animations/
     - assets/config/

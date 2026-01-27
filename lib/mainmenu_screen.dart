@@ -83,8 +83,6 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
       try {
         await precacheImage(AssetImage(path), ctx);
       } catch (e) {
-        // ignore
-        // ignore: avoid_print
         print('Precache failed $path: $e');
       }
     }
@@ -94,269 +92,302 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
 
   @override
   Widget build(BuildContext context) {
-    final screenW = MediaQuery.of(context).size.width;
-    final screenH = MediaQuery.of(context).size.height;
+    final mq = MediaQuery.of(context);
+    final screenW = mq.size.width;
+    final screenH = mq.size.height;
 
-    // --- asset original sizes you provided (used to compute aspect ratios) ---
-    const orig = {
-      'btn_scan': [280.0, 215.0],
-      'btn_chatbot': [216.0, 144.0],
-      'btn_profile': [216.0, 145.0],
-      'btn_try': [244.0, 161.0],
-      'btn_select': [669.0, 193.0],
-      'energy': [280.0, 92.0],
-      'bubble_power': [280.0, 92.0],
-    };
+    // Responsive sizing for buttons
+    final double selectW = screenW * 0.40;
+    final double profileW = screenW * 0.18;
+    final double chatW = screenW * 0.18;
+    final double scanW = screenW * 0.15;
+    final double tryW = screenW * 0.20;
+    final double topIconW = screenW * 0.20;
 
-    // --- tuning constants: fractions of screen width to use for each asset ---
-    double selectFraction = 0.40;
-    double tryFraction = 0.20;
-    double profileFraction = 0.25;
-    double chatFraction = 0.25;
-    double scanFraction = 1.25;
-    double topIconFraction = 0.20;
-
-    double displayWidth(String key, double fraction) {
-      final sizes = orig[key];
-      if (sizes == null) return screenW * fraction;
-      final w = sizes[0], h = sizes[1];
-      final aspect = h / w;
-      return screenW * fraction;
-    }
-
-    double displayHeight(String key, double fraction) {
-      final sizes = orig[key];
-      final w = sizes?[0] ?? 1.0;
-      final h = sizes?[1] ?? 1.0;
-      final aspect = h / w;
-      return (screenW * fraction) * aspect;
-    }
-
-    final selectW = displayWidth('btn_select', selectFraction);
-    final selectH = displayHeight('btn_select', selectFraction);
-
-    final tryW = displayWidth('btn_try', tryFraction);
-    final tryH = displayHeight('btn_try', tryFraction);
-
-    final profileW = displayWidth('btn_profile', profileFraction);
-    final profileH = displayHeight('btn_profile', profileFraction);
-
-    final chatW = displayWidth('btn_chatbot', chatFraction);
-    final chatH = displayHeight('btn_chatbot', chatFraction);
-
-    final scanW = displayWidth('btn_scan', scanFraction);
-    final scanH = displayHeight('btn_scan', scanFraction);
-
-    final bubbleW = displayWidth('bubble_power', topIconFraction);
-    final bubbleH = displayHeight('bubble_power', topIconFraction);
-
-    final energyW = displayWidth('energy', topIconFraction);
-    final energyH = displayHeight('energy', topIconFraction);
-
-    final selectLeft = (screenW - selectW) / 1.16;
-    final selectBottom = screenH * 0.03;
-
-    final profileLeft = selectLeft + selectW * 0.62;
-    final profileBottom = selectBottom + selectH * 0.30;
-
-    final chatLeft = profileLeft + profileW + 8;
-    final chatBottom = profileBottom;
-
-    final mascotAsset = asset('mascot_lottie').isNotEmpty ? asset('mascot_lottie') : MainMenuScreen.mascotLottieDefault;
+    final mascotAsset = asset('mascot_lottie').isNotEmpty
+        ? asset('mascot_lottie')
+        : MainMenuScreen.mascotLottieDefault;
 
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(child: Image.asset(MainMenuScreen.background, fit: BoxFit.cover)),
+          Positioned.fill(
+            child: Image.asset(
+                MainMenuScreen.background,
+                fit: BoxFit.cover
+            ),
+          ),
 
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      // === GROUP 1: Bubble Power + Energy (Top Right) ===
-                      Padding(
-                        padding: const EdgeInsets.only(top: 0.5),
-                        child: Row(
-                          children: [
-                            Consumer<SessionService>(
-                              builder: (_, s, __) => IconStatButton(
-                                assetPath: asset('bubble_power'),
-                                width: bubbleW,
-                                height: bubbleH,
-                                value: s.bubblePower.toString(),
-                                onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bubble power tapped'))),
-                                textStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Consumer<SessionService>(
-                              builder: (_, s, __) => IconStatButton(
-                                assetPath: asset('energy'),
-                                width: energyW,
-                                height: energyH,
-                                value: s.energy.toString(),
-                                onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Energy tapped'))),
-                                textStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Expanded(
-                    child: Center(
-                      child: Stack(
-                        clipBehavior: Clip.none,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: IntrinsicHeight(
+                      child: Column(
                         children: [
-                          Center(
-                            child: SizedBox(
-                              width: screenW * 0.95,
-                              height: screenH * 0.60,
-                              // Quick fix: pass a small verticalNudge to lift the Lottie if it's visually low.
-                              child: _MascotAnimation(
-                                asset: mascotAsset,
-                                width: screenW * 0.95,
-                                height: screenH * 0.60,
-                                verticalNudge: -0.08, // tweak this if needed (-0.12 .. 0.0)
-                              ),
-                            ),
-                          ),
-
-                          // ✅ SELECT button
-                          Positioned(
-                            left: selectLeft,
-                            bottom: selectBottom,
-                            child: SizedBox(
-                              width: selectW,
-                              height: selectH,
-                              child: ImageAssetButton(
-                                assetPath: asset('btn_select'),
-                                width: selectW,
-                                height: selectH,
-                                fill: true,
-                                onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mascot Selected'))),
-                                fallbackWidget: ElevatedButton(
-                                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mascot Selected'))),
-                                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFf2c94c)),
-                                  child: const Text('SELECT'),
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // Profile + Chat positioned above SELECT button
-                          Positioned(
-                            right: screenW * 0.07,
-                            bottom: selectBottom + selectH + 10,
+                          // Top stats row
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                ImageAssetButton(
-                                  assetPath: asset('btn_profile'),
-                                  width: profileW * 0.55,
-                                  height: profileH * 0.55,
-                                  fill: true,
-                                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileScreen())),
-                                  fallbackWidget: const Icon(Icons.person, color: Colors.white),
+                                Consumer<SessionService>(
+                                  builder: (_, s, __) => IconStatButton(
+                                    assetPath: asset('bubble_power'),
+                                    width: topIconW,
+                                    height: topIconW * 0.35,
+                                    value: s.bubblePower.toString(),
+                                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Bubble power tapped')),
+                                    ),
+                                    textStyle: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                                const SizedBox(width: 6),
-                                ImageAssetButton(
-                                  assetPath: asset('btn_chatbot'),
-                                  width: chatW * 0.55,
-                                  height: chatH * 0.55,
-                                  fill: true,
-                                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChatbotScreen())),
-                                  fallbackWidget: const Icon(Icons.chat_bubble, color: Colors.white),
+                                const SizedBox(width: 10),
+                                Consumer<SessionService>(
+                                  builder: (_, s, __) => IconStatButton(
+                                    assetPath: asset('energy'),
+                                    width: topIconW,
+                                    height: topIconW * 0.35,
+                                    value: s.energy.toString(),
+                                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Energy tapped')),
+                                    ),
+                                    textStyle: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
+
+                          // Mascot section with flexible space
+                          Expanded(
+                            flex: 5,
+                            child: Stack(
+                              children: [
+                                // Centered mascot
+                                Center(
+                                  child: SizedBox(
+                                    width: screenW * 0.94,
+                                    height: screenH * 0.44,
+                                    child: _MascotAnimation(
+                                      asset: mascotAsset,
+                                      width: screenW * 0.94,
+                                      height: screenH * 0.44,
+                                      verticalNudge: -0.08,
+                                      scale: 1.2,
+                                    ),
+                                  ),
+                                ),
+
+                                // AR Scan button (left side)
+                                Positioned(
+                                  bottom: screenH * 0.12,
+                                  left: 16,
+                                  child: ImageAssetButton(
+                                    assetPath: asset('btn_arscan'),
+                                    width: scanW,
+                                    height: scanW * 0.88,
+                                    fill: true,
+                                    onTap: () => Navigator.of(context).push(
+                                      MaterialPageRoute(builder: (_) => const ARScanScreen()),
+                                    ),
+                                    fallbackWidget: const Icon(
+                                      Icons.qr_code_scanner,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+
+                                // Profile & Chat buttons (stacked vertically on right)
+                                Positioned(
+                                  right: 16,
+                                  bottom: screenH * 0.09,
+                                  child: Row(
+                                    children: [
+                                      ImageAssetButton(
+                                        assetPath: asset('btn_profile'),
+                                        width: profileW * 0.90,
+                                        height: profileW * 0.56,
+                                        fill: true,
+                                        onTap: () => Navigator.of(context).push(
+                                          MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                                        ),
+                                        fallbackWidget: const Icon(
+                                          Icons.person,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      ImageAssetButton(
+                                        assetPath: asset('btn_chatbot'),
+                                        width: chatW * 0.90,
+                                        height: chatW * 0.56,
+                                        fill: true,
+                                        onTap: () => Navigator.of(context).push(
+                                          MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+                                        ),
+                                        fallbackWidget: const Icon(
+                                          Icons.chat_bubble,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // SELECT button
+                                Positioned(
+                                  right: 16,
+                                  bottom: screenH * 0.03,
+                                  child: ImageAssetButton(
+                                    assetPath: asset('btn_select'),
+                                    width: selectW,
+                                    height: selectW * 0.30,
+                                    fill: true,
+                                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Mascot Selected')),
+                                    ),
+                                    fallbackWidget: ElevatedButton(
+                                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Mascot Selected')),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFFf2c94c),
+                                      ),
+                                      child: const Text('SELECT'),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Leaderboards section
+                          Padding(
+                            padding: const EdgeInsets.all(6.0),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6),
+                                image: asset('leaderboard_bg').isNotEmpty
+                                    ? DecorationImage(
+                                  image: AssetImage(asset('leaderboard_bg')),
+                                  fit: BoxFit.fill,
+                                )
+                                    : null,
+                                color: asset('leaderboard_bg').isEmpty
+                                    ? Colors.black.withOpacity(0.4)
+                                    : null,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      if (asset('leaderboard_emblem').isNotEmpty)
+                                        Image.asset(
+                                          asset('leaderboard_emblem'),
+                                          width: 44,
+                                          height: 44,
+                                        )
+                                      else
+                                        Container(
+                                          width: 44,
+                                          height: 44,
+                                          decoration: const BoxDecoration(
+                                            color: Colors.purple,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                      const SizedBox(width: 12),
+                                      const Expanded(
+                                        child: Text(
+                                          'LEADERBOARDS',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      ImageAssetButton(
+                                        assetPath: asset('btn_try'),
+                                        width: tryW,
+                                        height: tryW * 0.66,
+                                        fill: true,
+                                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('TRY pressed')),
+                                        ),
+                                        fallbackWidget: ElevatedButton(
+                                          onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('TRY pressed')),
+                                          ),
+                                          child: const Text('TRY'),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  const _LeaderboardItem(
+                                    rank: 1,
+                                    title: 'EPIC',
+                                    color: Colors.orange,
+                                  ),
+                                  const _LeaderboardItem(
+                                    rank: 2,
+                                    title: 'AWESOME',
+                                    color: Colors.red,
+                                  ),
+                                  const _LeaderboardItem(
+                                    rank: 3,
+                                    title: 'GOOD',
+                                    color: Colors.green,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  if (asset('btn_gem_grab').isNotEmpty)
+                                    ImageAssetButton(
+                                      assetPath: asset('btn_gem_grab'),
+                                      width: double.infinity,
+                                      height: 56,
+                                      fill: true,
+                                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Open Gem Grab')),
+                                      ),
+                                      fallbackWidget: const SizedBox.shrink(),
+                                    )
+                                  else
+                                    ElevatedButton(
+                                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Open Gem Grab')),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.deepPurple,
+                                      ),
+                                      child: const Text('GEM GRAB'),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 1),
                         ],
                       ),
                     ),
                   ),
-
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      image: asset('leaderboard_bg').isNotEmpty ? DecorationImage(image: AssetImage(asset('leaderboard_bg')), fit: BoxFit.fill) : null,
-                      color: asset('leaderboard_bg').isEmpty ? Colors.black.withOpacity(0.4) : null,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            if (asset('leaderboard_emblem').isNotEmpty)
-                              Image.asset(asset('leaderboard_emblem'), width: 44, height: 44)
-                            else
-                              Container(width: 44, height: 44, decoration: BoxDecoration(color: Colors.purple, shape: BoxShape.circle)),
-                            const SizedBox(width: 12),
-                            const Expanded(child: Text('LEADERBOARDS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-                            ImageAssetButton(
-                              assetPath: asset('btn_try'),
-                              width: tryW,
-                              height: tryH,
-                              fill: true,
-                              onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('TRY pressed'))),
-                              fallbackWidget: ElevatedButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('TRY pressed'))), child: const Text('TRY')),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        const _LeaderboardItem(rank: 1, title: 'EPIC', color: Colors.orange),
-                        const _LeaderboardItem(rank: 2, title: 'AWESOME', color: Colors.red),
-                        const _LeaderboardItem(rank: 3, title: 'GOOD', color: Colors.green),
-                        const SizedBox(height: 12),
-                        if (asset('btn_gem_grab').isNotEmpty)
-                          ImageAssetButton(
-                            assetPath: asset('btn_gem_grab'),
-                            width: double.infinity,
-                            height: 56,
-                            fill: true,
-                            onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Open Gem Grab'))),
-                            fallbackWidget: const SizedBox.shrink(),
-                          )
-                        else
-                          ElevatedButton(
-                            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Open Gem Grab'))),
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
-                            child: const Text('GEM GRAB'),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-                ],
-              ),
-            ),
-          ),
-
-          // === STANDALONE: AR Scan Button (placed AFTER SafeArea so it is on top and receives taps) ===
-          Positioned(
-            bottom: screenH * 0.56,
-            left: 50,
-            child: SizedBox(
-              width: scanW * 0.12,
-              height: scanH * 0.12,
-              child: ImageAssetButton(
-                assetPath: asset('btn_arscan'),
-                width: scanW * 0.12,
-                height: scanH * 0.12,
-                fill: true,
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ARScanScreen())),
-                fallbackWidget: const Icon(Icons.qr_code_scanner, color: Colors.white),
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -365,7 +396,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
   }
 }
 
-/// IconStatButton: image background with centered value (keeps value on top of artwork)
+/// IconStatButton: image background with centered value
 class IconStatButton extends StatelessWidget {
   final String assetPath;
   final double width;
@@ -394,21 +425,26 @@ class IconStatButton extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // image background (fallback to simple colored box if missing)
             Image.asset(
               assetPath,
               width: width,
               height: height,
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) => Container(
-                width: width, height: height,
-                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
+                width: width,
+                height: height,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
-            // centered value text
             Text(
               value,
-              style: textStyle ?? const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              style: textStyle ?? const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -418,7 +454,7 @@ class IconStatButton extends StatelessWidget {
   }
 }
 
-/// ImageAssetButton (unchanged except 'fill' support)
+/// ImageAssetButton
 class ImageAssetButton extends StatelessWidget {
   final String assetPath;
   final VoidCallback onTap;
@@ -442,8 +478,21 @@ class ImageAssetButton extends StatelessWidget {
     final BoxFit fit = fill ? BoxFit.fill : BoxFit.contain;
 
     if (assetPath.isEmpty) {
-      if (fallbackWidget != null) return SizedBox(width: width, height: height, child: Center(child: fallbackWidget));
-      return SizedBox(width: width, height: height, child: ElevatedButton(onPressed: onTap, child: const SizedBox()));
+      if (fallbackWidget != null) {
+        return SizedBox(
+          width: width,
+          height: height,
+          child: Center(child: fallbackWidget),
+        );
+      }
+      return SizedBox(
+        width: width,
+        height: height,
+        child: ElevatedButton(
+          onPressed: onTap,
+          child: const SizedBox(),
+        ),
+      );
     }
     return GestureDetector(
       onTap: onTap,
@@ -453,8 +502,21 @@ class ImageAssetButton extends StatelessWidget {
         height: height,
         fit: fit,
         errorBuilder: (ctx, err, st) {
-          if (fallbackWidget != null) return SizedBox(width: width, height: height, child: Center(child: fallbackWidget));
-          return SizedBox(width: width, height: height, child: ElevatedButton(onPressed: onTap, child: const SizedBox()));
+          if (fallbackWidget != null) {
+            return SizedBox(
+              width: width,
+              height: height,
+              child: Center(child: fallbackWidget),
+            );
+          }
+          return SizedBox(
+            width: width,
+            height: height,
+            child: ElevatedButton(
+              onPressed: onTap,
+              child: const SizedBox(),
+            ),
+          );
         },
       ),
     );
@@ -465,34 +527,56 @@ class _LeaderboardItem extends StatelessWidget {
   final int rank;
   final String title;
   final Color color;
-  const _LeaderboardItem({Key? key, required this.rank, required this.title, required this.color}) : super(key: key);
+  const _LeaderboardItem({
+    Key? key,
+    required this.rank,
+    required this.title,
+    required this.color,
+  }) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Row(
         children: [
-          CircleAvatar(backgroundColor: color, child: Text('#$rank', style: const TextStyle(color: Colors.white))),
+          CircleAvatar(
+            backgroundColor: color,
+            child: Text(
+              '#$rank',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
           const SizedBox(width: 12),
-          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const Spacer(),
-          const Text('9999', style: TextStyle(color: Colors.white70))
+          const Text(
+            '9999',
+            style: TextStyle(color: Colors.white70),
+          ),
         ],
       ),
     );
   }
 }
 
-/// Quick-fix Mascot animation: uses BoxFit.contain + optional vertical nudge + scale
+/// Mascot animation
 class _MascotAnimation extends StatelessWidget {
   final String asset;
   final double width;
   final double height;
-  /// small [-1..1] vertical nudge (negative moves up, positive moves down)
   final double verticalNudge;
-  /// scale multiplier for the animation (1.0 = original size)
   final double scale;
 
   const _MascotAnimation({
@@ -506,8 +590,6 @@ class _MascotAnimation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Wrap in SizedBox so Lottie knows the available area, use BoxFit.contain to avoid cropping,
-    // Align to apply a small nudge if the art is off-center in the JSON, and Transform.scale to enlarge.
     return SizedBox(
       width: width,
       height: height,
@@ -517,14 +599,20 @@ class _MascotAnimation extends StatelessWidget {
           future: rootBundle.load(asset),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Container(color: Colors.transparent, child: const Center(child: CircularProgressIndicator()));
+              return Container(
+                color: Colors.transparent,
+                child: const Center(child: CircularProgressIndicator()),
+              );
             }
             if (snapshot.hasError || !snapshot.hasData) {
-              return Container(color: Colors.transparent, child: const Center(child: Icon(Icons.pets, size: 120, color: Colors.white)));
+              return Container(
+                color: Colors.transparent,
+                child: const Center(
+                  child: Icon(Icons.pets, size: 120, color: Colors.white),
+                ),
+              );
             }
             try {
-              // Transform.scale enlarges the rendered animation inside the available box.
-              // ClipRect prevents any accidental overflow from drawing outside the parent box.
               return ClipRect(
                 child: Transform.scale(
                   scale: scale,
@@ -541,9 +629,13 @@ class _MascotAnimation extends StatelessWidget {
                 ),
               );
             } catch (e, st) {
-              // ignore: avoid_print
               print('Lottie error $e\n$st');
-              return Container(color: Colors.transparent, child: const Center(child: Icon(Icons.pets, size: 120, color: Colors.white)));
+              return Container(
+                color: Colors.transparent,
+                child: const Center(
+                  child: Icon(Icons.pets, size: 120, color: Colors.white),
+                ),
+              );
             }
           },
         ),
