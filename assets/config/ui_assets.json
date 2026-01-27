@@ -1,0 +1,10 @@
+{
+  "btn_select": "assets/images/pngs/btn_select.png",
+  "btn_try": "assets/images/pngs/btn_try.png",
+  "bubble_power":"assets/images/pngs/bubble_power.png",
+  "energy": "assets/images/pngs/energy.png",
+  "btn_arscan": "assets/images/pngs/btn_scan.png",
+  "btn_profile": "assets/images/pngs/btn_profile.png",
+  "btn_chatbot":  "assets/images/pngs/btn_chatbot.png",
+  "mascot_lottie": "assets/animations/smarty_flap.json"
+}
