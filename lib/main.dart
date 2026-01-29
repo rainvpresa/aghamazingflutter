@@ -1,12 +1,21 @@
-// lib/main.dart
-
 import 'package:flutter/material.dart';
-import 'package:aghamazing/welcome_screen.dart'; // package import
-import 'login_screen.dart';
-import 'register_screen.dart';
-import 'otp_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:aghamazing1/screens/welcome_screen.dart';
+import 'services/auth_service.dart';
+import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/mainmenu_screen.dart';
 
-void main() {
+
+void main() async {
+  // Ensure Flutter bindings are initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp();
+
   runApp(const MyApp());
 }
 
@@ -20,15 +29,50 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        useMaterial3: true,
       ),
-      // Show the welcome screen first (non-const instance)
-      home: WelcomeScreen(),
-        routes: {
-          '/login': (_) => const LoginScreen(),
-          '/register': (_) => const RegisterScreen(),
-          '/otp': (_) => const OtpScreen(),
-        }
+      // Use AuthWrapper to check authentication state
+      home: const AuthWrapper(),
+      routes: {
+        '/welcome': (_) => WelcomeScreen(),
+        '/login': (_) => const LoginScreen(),
+        '/register': (_) => const RegisterScreen(),
+        '/mainmenu': (_) => const MainMenuScreen(),
+        '/profile': (_) => const ProfileScreen(),
+        // Add more routes as needed
+      },
     );
   }
 }
 
+// This widget checks if user is logged in
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final authService = AuthService();
+
+    return StreamBuilder<User?>(
+      stream: authService.authStateChanges,
+      builder: (context, snapshot) {
+        // Show loading while checking auth state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        // User is logged in - go to main menu
+        if (snapshot.hasData) {
+          return const MainMenuScreen();
+        }
+
+        // User is not logged in - show welcome screen
+        return WelcomeScreen();
+      },
+    );
+  }
+}

@@ -1,4 +1,4 @@
-import 'package:aghamazing/services/auth_api.dart';
+import 'package:aghamazing1/services/auth_api.dart';
 
 // Create a single shared instance of AuthApi for the app.
 // Replace the URLs below with your API endpoints.

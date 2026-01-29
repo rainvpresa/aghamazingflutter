@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:aghamazing/services/api_client.dart'; // <- use package import
-import 'package:aghamazing/services/auth_api.dart';   // optional, for catching ApiException
+// import 'package:aghamazing1/services/api_client.dart'; // <- use package import
+// import 'package:aghamazing1/services/auth_api.dart';   // optional, for catching ApiException
+import '../services/auth_service.dart'; // Add this import at the top
 
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({Key? key}) : super(key: key);
+  const RegisterScreen({super.key});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -304,6 +305,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+
   Future<void> _onCreatePressed() async {
     // mark touched to show validation
     setState(() {
@@ -326,44 +328,81 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final password = _passCtl.text;
 
     try {
-      // Call server registration
-      final key = await authApi.registerUser(username: username, email: email, password: password);
+      // Use AuthService
+      final authService = AuthService();
 
-      // Save pending verification email (like PlayerPrefs)
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('PendingVerificationEmail', email);
+      // Create account directly (no OTP)
+      final result = await authService.registerWithEmailVerification(
+        email: email,
+        password: password,
+        displayName: username,
+      );
 
-      // Optionally request OTP (Unity code did this)
-      await authApi.requestOtp(email: email);
-
-      // Close loader
       if (!mounted) return;
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(); // Close loading
 
-      // Show success and navigate to OTP screen
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account created. Check your email for verification'), backgroundColor: Colors.green),
-        );
-
-        // Navigate to OTP screen (either by name or route)
-        Navigator.of(context).pushReplacementNamed('/otp');
-      }
-    } on ApiException catch (e) {
-      if (mounted) Navigator.of(context).pop();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.red));
+      if (result['success'] == true) {
+        if (mounted) {
+          // Show success dialog
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Row(
+                children: [
+                  Icon(Icons.email, color: Color(0xFF1866B2)),
+                  SizedBox(width: 12),
+                  Text('Verify Your Email'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('We\'ve sent a verification email to:'),
+                  SizedBox(height: 8),
+                  Text(
+                    email,
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 16),
+                  Text('Please check your inbox and click the verification link to activate your account.'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pushReplacementNamed('/login');
+                  },
+                  child: Text('Go to Login'),
+                ),
+              ],
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Registration failed'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Registration failed: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Registration failed: $e'), backgroundColor: Colors.red),
+        );
       }
     } finally {
       if (mounted) setState(() => _isCreating = false);
     }
   }
-
   // Helper that builds a pill-shaped input with animated border color
   Widget _buildPillField({
     required Widget child,

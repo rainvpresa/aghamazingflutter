@@ -1,4 +1,4 @@
-package dost_stii.aghamazingquest.aghamazing1
+package com.doststii.aghamazing1
 
 import io.flutter.embedding.android.FlutterActivity
 

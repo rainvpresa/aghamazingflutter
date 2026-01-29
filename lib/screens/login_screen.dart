@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:aghamazing/services/api_client.dart';
-import 'package:aghamazing/services/auth_api.dart';
+import '../services/auth_service.dart';
 import 'fp_screen.dart';
 import 'register_screen.dart';
-import 'mainmenu_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -31,8 +29,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isBusy = false;
 
-  static const int rememberMeSessionDays = 3;
-
   @override
   void initState() {
     super.initState();
@@ -42,15 +38,13 @@ class _LoginScreenState extends State<LoginScreen> {
     _loadRememberedEmail();
   }
 
+  // Simple: just load the saved email if "Remember me" was checked
   Future<void> _loadRememberedEmail() async {
     final prefs = await SharedPreferences.getInstance();
-    final remember = prefs.getInt('RememberMe') ?? 0;
-    if (remember == 1) {
-      final savedEmail = prefs.getString('SavedEmail') ?? '';
-      if (savedEmail.isNotEmpty) {
-        _emailCtl.text = savedEmail;
-        setState(() => _remember = true);
-      }
+    final savedEmail = prefs.getString('SavedEmail') ?? '';
+    if (savedEmail.isNotEmpty) {
+      _emailCtl.text = savedEmail;
+      setState(() => _remember = true);
     }
   }
 
@@ -86,58 +80,63 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     try {
-      final key = await authApi.loginUser(email: email, password: password);
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('UserToken', key);
-      await prefs.setString('UserEmail', email);
-
-      if (_remember) {
-        await prefs.setInt('RememberMe', 1);
-        await prefs.setString('SavedEmail', email);
-        final expiry = DateTime.now()
-            .add(Duration(days: rememberMeSessionDays))
-            .toIso8601String();
-        await prefs.setString('SessionExpiry', expiry);
-      } else {
-        await prefs.setInt('RememberMe', 0);
-        await prefs.remove('SavedEmail');
-        await prefs.remove('SessionExpiry');
-      }
+      final authService = AuthService();
+      final result = await authService.loginWithEmail(
+        email: email,
+        password: password,
+      );
 
       if (!mounted) return;
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(); // Close loading dialog
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Login successful'), backgroundColor: Colors.green));
-      }
+      if (result['success'] == true) {
+        // Simple: Just save/remove email based on checkbox
+        final prefs = await SharedPreferences.getInstance();
+        if (_remember) {
+          await prefs.setString('SavedEmail', email);
+        } else {
+          await prefs.remove('SavedEmail');
+        }
 
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => MainMenuScreen()),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Login successful'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Firebase Auth's StreamBuilder in main.dart will automatically
+          // navigate to MainMenuScreen - no manual navigation needed!
+          // But we can still navigate immediately for better UX:
+          Navigator.of(context).pushReplacementNamed('/mainmenu');
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Login failed'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        _passCtl.clear();
       }
-    } on ApiException catch (e) {
-      if (mounted) Navigator.of(context).pop();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(e.message), backgroundColor: Colors.red));
-      }
-      _passCtl.clear();
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Login failed: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login failed: $e'), backgroundColor: Colors.red),
+        );
       }
       _passCtl.clear();
     } finally {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isBusy = false;
           _loginPressed = false;
         });
+      }
     }
   }
 
@@ -148,9 +147,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    final screenHeight = mq.size.height;
-
     return Scaffold(
       body: Stack(
         children: [
@@ -173,10 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: IntrinsicHeight(
                       child: Column(
                         children: [
-                          // Top spacer - pushes content down from top
                           const Spacer(flex: 4),
-
-                          // Main content container
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 28.0),
                             child: ConstrainedBox(
@@ -185,13 +178,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const SizedBox(height: 24),
-
-                                  // Form fields
                                   Form(
                                     key: _formKey,
                                     child: Column(
                                       children: [
-                                        // Email field
                                         TextFormField(
                                           controller: _emailCtl,
                                           keyboardType: TextInputType.emailAddress,
@@ -218,8 +208,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                         ),
                                         const SizedBox(height: 14),
-
-                                        // Password field
                                         TextFormField(
                                           controller: _passCtl,
                                           obscureText: _obscure,
@@ -253,8 +241,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                         ),
                                         const SizedBox(height: 12),
-
-                                        // Remember me + Forgot password row
                                         Row(
                                           children: [
                                             Row(
@@ -317,18 +303,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                             ),
                                           ],
                                         ),
-
                                         const SizedBox(height: 20),
-
-                                        // Login button
                                         _buildAnimatedButton(),
                                       ],
                                     ),
                                   ),
-
                                   const SizedBox(height: 20),
-
-                                  // Register row
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
@@ -353,7 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             Navigator.of(context).push(
                                                 MaterialPageRoute(
                                                     builder: (_) =>
-                                                        RegisterScreen()));
+                                                    const RegisterScreen()));
                                           }),
                                           onTapCancel: () => setState(
                                                   () => _registerPressed = false),
@@ -381,11 +361,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
-
-                          // Bottom spacer - pushes logos to bottom
                           const Spacer(flex: 3),
-
-                          // Bottom logos (if you have them in your background, this is optional)
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -404,7 +380,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final double scale = _loginPressed ? 0.98 : (_loginHovered ? 1.02 : 1.0);
     final double elevation = _loginPressed ? 2 : (_loginHovered ? 10 : 6);
     final Duration animDur = const Duration(milliseconds: 140);
-
     final bool disabled = _isBusy;
 
     return MouseRegion(

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/auth_service.dart';
+import '../services/userprofile_service.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   static const _bg = 'assets/images/backgrounds/profile_screen.png';
   static const backButtonAsset = 'assets/images/pngs/btn_back.png';
@@ -20,6 +22,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _profileAvatarPath;
   bool _loading = true;
 
+  // Add Firebase references
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final UserProfileService _profileService = UserProfileService();
+
   static const List<String> _avatarPool = [
     'assets/images/avatars/botttsNeutral-blue.png',
     'assets/images/avatars/botttsNeutral-yellow.png',
@@ -31,41 +38,94 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProfileFromPrefs();
+    _loadProfileFromFirebase();
   }
 
-  Future<void> _loadProfileFromPrefs() async {
+  // NEW: Load from Firebase instead of SharedPreferences
+  Future<void> _loadProfileFromFirebase() async {
     setState(() => _loading = true);
-    final prefs = await SharedPreferences.getInstance();
-    _nameController.text = prefs.getString('profile_name') ?? '';
-    _emailController.text = prefs.getString('profile_email') ?? '';
-    _profileAvatarPath = prefs.getString('profile_avatar_path');
-    setState(() => _loading = false);
+
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        // User not logged in, redirect to login
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/login');
+        }
+        return;
+      }
+
+      // Get user profile from Firestore
+      final profile = await _profileService.getUserProfile();
+
+      if (profile != null) {
+        _nameController.text = profile['displayName'] ?? '';
+        _emailController.text = profile['email'] ?? user.email ?? '';
+        _profileAvatarPath = profile['avatarPath']; // Stored avatar selection
+      } else {
+        // Fallback to Firebase Auth data if Firestore profile doesn't exist
+        _nameController.text = user.displayName ?? '';
+        _emailController.text = user.email ?? '';
+      }
+    } catch (e) {
+      print('Error loading profile: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading profile: $e')),
+        );
+      }
+    } finally {
+      setState(() => _loading = false);
+    }
   }
 
-  Future<void> _saveNameToPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('profile_name', _nameController.text.trim());
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Name saved')),
-    );
+  // UPDATE: Save name to Firebase
+  Future<void> _saveNameToFirebase() async {
+    try {
+      final name = _nameController.text.trim();
+      if (name.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Name cannot be empty')),
+        );
+        return;
+      }
+
+      // Update in Firestore
+      await _profileService.updateUserProfile(displayName: name);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Name saved successfully')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving name: $e')),
+      );
+    }
   }
 
-  Future<void> _saveEmailToPrefs(String email) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('profile_email', email.trim());
-    setState(() => _emailController.text = email.trim());
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Email updated locally')),
-    );
-  }
-
+  // UPDATE: Save avatar to Firebase
   Future<void> _saveProfileAvatarPath(String assetPath) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('profile_avatar_path', assetPath);
-    setState(() => _profileAvatarPath = assetPath);
+    try {
+      // Save to Firestore
+      await _firestore
+          .collection('users')
+          .doc(_auth.currentUser!.uid)
+          .update({'avatarPath': assetPath});
+
+      setState(() => _profileAvatarPath = assetPath);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile picture updated')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating picture: $e')),
+      );
+    }
   }
 
   Future<void> _showAvatarSelectionSheet() async {
@@ -159,50 +219,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // UPDATE: Email change via Firebase
   Future<void> _showEditEmailDialog() async {
-    final TextEditingController emailCtrl = TextEditingController(text: _emailController.text);
-    final TextEditingController passwordCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
     await showDialog<void>(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text('Change email'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'New email',
-                    hintText: 'you@example.com',
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Enter an email';
-                    if (!v.contains('@')) return 'Enter a valid email';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: passwordCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    hintText: 'Enter current password',
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Enter your password';
-                    if (v.length < 6) return 'Password too short';
-                    return null;
-                  },
-                ),
-              ],
-            ),
+          title: const Text('Change Email'),
+          content: const Text(
+            'To change your email, we\'ll send a verification link to your new email address. '
+                'Please check your inbox and click the link to verify.',
           ),
           actions: [
             TextButton(
@@ -211,12 +237,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
-                if (!formKey.currentState!.validate()) return;
-                final newEmail = emailCtrl.text.trim();
                 Navigator.of(ctx).pop();
-                await _saveEmailToPrefs(newEmail);
+
+                // Firebase will send email verification automatically
+                // when user calls verifyBeforeUpdateEmail()
+                final user = _auth.currentUser;
+                if (user != null) {
+                  try {
+                    // This requires re-authentication for security
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please contact support to change your email'),
+                      ),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                }
               },
-              child: const Text('Save'),
+              child: const Text('Contact Support'),
             ),
           ],
         );
@@ -224,52 +265,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // UPDATE: Password reset via Firebase
   Future<void> _showResetPasswordDialog() async {
-    final TextEditingController emailCtrl = TextEditingController(text: _emailController.text);
-    final formKey = GlobalKey<FormState>();
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No email found for this account')),
+      );
+      return;
+    }
 
-    await showDialog<void>(
+    final shouldSend = await showDialog<bool>(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          title: const Text('Reset password'),
-          content: Form(
-            key: formKey,
-            child: TextFormField(
-              controller: emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email to send reset link',
-              ),
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Enter an email';
-                if (!v.contains('@')) return 'Enter a valid email';
-                return null;
-              },
-            ),
+          title: const Text('Reset Password'),
+          content: Text(
+            'We will send a password reset link to:\n${user.email}\n\n'
+                'Click the link in your email to reset your password.',
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
+              onPressed: () => Navigator.of(ctx).pop(false),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                if (!formKey.currentState!.validate()) return;
-                Navigator.of(ctx).pop();
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Password reset link sent (mock)')),
-                );
-              },
-              child: const Text('Send'),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Send Link'),
             ),
           ],
         );
       },
     );
+
+    if (shouldSend == true) {
+      try {
+        await _auth.sendPasswordResetEmail(email: user.email!);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password reset link sent! Check your email.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 
+  // UPDATE: Logout with Firebase
   Future<void> _confirmLogout() async {
     final should = await showDialog<bool>(
       context: context,
@@ -293,14 +341,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (should == true) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
+      try {
+        // Use AuthService to logout
+        await AuthService().logout();
 
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-            (route) => false,
-      );
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (route) => false,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Logout error: $e')),
+        );
+      }
     }
   }
 
@@ -379,9 +434,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
-        // Reserve more vertical and horizontal space for the custom image
-        toolbarHeight: 50, // adjust to taste
-        leadingWidth: 105,  // reserve horizontal space so icon doesn't overlap
+        toolbarHeight: 50,
+        leadingWidth: 105,
         leading: Padding(
           padding: const EdgeInsets.all(0.0),
           child: IconButton(
@@ -390,7 +444,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             constraints: const BoxConstraints(minWidth: 68, minHeight: 70),
             icon: Image.asset(
               ProfileScreen.backButtonAsset,
-              width: 167, // visible icon size, tweak as needed
+              width: 167,
               height: 90,
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) => Container(
@@ -632,7 +686,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: ElevatedButton(
-                                          onPressed: _saveNameToPrefs,
+                                          onPressed: _saveNameToFirebase,
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: const Color(0xFF57BF0F),
                                             padding: const EdgeInsets.symmetric(vertical: 14),

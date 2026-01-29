@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
-
-import 'services/session_service.dart';
+import '../services/userprofile_service.dart';
 import 'profile_screen.dart';
 import 'chatbot_screen.dart';
 import 'arscan_screen.dart';
@@ -29,7 +28,7 @@ class UiAssets {
 }
 
 class MainMenuScreen extends StatelessWidget {
-  const MainMenuScreen({Key? key}) : super(key: key);
+  const MainMenuScreen({super.key});
   static const String background = 'assets/images/backgrounds/mainmenu_screen.png';
   static const String mascotLottieDefault = 'assets/animations/smarty_flap.json';
 
@@ -60,7 +59,7 @@ class MainMenuScreen extends StatelessWidget {
 
 class _MainMenuBody extends StatefulWidget {
   final Map<String, String> uiAssets;
-  const _MainMenuBody({Key? key, required this.uiAssets}) : super(key: key);
+  const _MainMenuBody({required this.uiAssets});
   @override
   State<_MainMenuBody> createState() => _MainMenuBodyState();
 }
@@ -406,14 +405,14 @@ class IconStatButton extends StatelessWidget {
   final VoidCallback? onTap;
 
   const IconStatButton({
-    Key? key,
+    super.key,
     required this.assetPath,
     required this.width,
     required this.height,
     required this.value,
     this.textStyle,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -464,14 +463,14 @@ class ImageAssetButton extends StatelessWidget {
   final bool fill;
 
   const ImageAssetButton({
-    Key? key,
+    super.key,
     required this.assetPath,
     required this.onTap,
     this.width,
     this.height,
     this.fallbackWidget,
     this.fill = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -528,11 +527,10 @@ class _LeaderboardItem extends StatelessWidget {
   final String title;
   final Color color;
   const _LeaderboardItem({
-    Key? key,
     required this.rank,
     required this.title,
     required this.color,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -580,13 +578,12 @@ class _MascotAnimation extends StatelessWidget {
   final double scale;
 
   const _MascotAnimation({
-    Key? key,
     required this.asset,
     required this.width,
     required this.height,
     this.verticalNudge = 0.0,
     this.scale = 1.2,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
