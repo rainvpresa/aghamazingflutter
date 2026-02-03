@@ -2,7 +2,6 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
-    // ADD THIS LINE BELOW:
     id("com.google.gms.google-services")
 }
 
@@ -22,7 +21,8 @@ android {
 
     defaultConfig {
         applicationId = "com.doststii.aghamazing1"
-        minSdk = flutter.minSdkVersion
+        // Updated minSdk to 28 as required by ar_flutter_plugin_2
+        minSdk = 28
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -40,10 +40,6 @@ flutter {
 }
 
 dependencies {
-    // Import the Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:34.8.0"))
-
-    // Add the dependencies for Firebase products you want to use
-    // When using the BoM, you don't specify versions in Firebase dependencies
     implementation("com.google.firebase:firebase-analytics")
 }

@@ -7,7 +7,7 @@ import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/mainmenu_screen.dart';
-
+import 'screens/main_trivia_screen.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -30,6 +30,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
+        fontFamily: 'LilitaOne',
       ),
       // Use AuthWrapper to check authentication state
       home: const AuthWrapper(),
@@ -39,7 +40,7 @@ class MyApp extends StatelessWidget {
         '/register': (_) => const RegisterScreen(),
         '/mainmenu': (_) => const MainMenuScreen(),
         '/profile': (_) => const ProfileScreen(),
-        // Add more routes as needed
+        '/trivia': (_) => const MainTriviaScreen(),
       },
     );
   }
