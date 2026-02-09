@@ -82,7 +82,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
       try {
         await precacheImage(AssetImage(path), ctx);
       } catch (e) {
-        print('Precache failed $path: $e');
+        debugPrint('Precache failed $path: $e');
       }
     }
   }
@@ -135,7 +135,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
                                 Consumer<SessionService>(
-                                  builder: (_, s, __) => IconStatButton(
+                                  builder: (context, s, _) => IconStatButton(
                                     assetPath: asset('bubble_power'),
                                     width: topIconW,
                                     height: topIconW * 0.35,
@@ -151,7 +151,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                 ),
                                 const SizedBox(width: 10),
                                 Consumer<SessionService>(
-                                  builder: (_, s, __) => IconStatButton(
+                                  builder: (context, s, _) => IconStatButton(
                                     assetPath: asset('energy'),
                                     width: topIconW,
                                     height: topIconW * 0.35,
@@ -287,7 +287,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                 )
                                     : null,
                                 color: asset('leaderboard_bg').isEmpty
-                                    ? Colors.black.withOpacity(0.4)
+                                    ? Colors.black.withValues(alpha: 0.4)
                                     : null,
                               ),
                               child: Column(
@@ -429,7 +429,7 @@ class IconStatButton extends StatelessWidget {
               width: width,
               height: height,
               fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (context, error, stackTrace) => Container(
                 width: width,
                 height: height,
                 decoration: BoxDecoration(
@@ -626,7 +626,7 @@ class _MascotAnimation extends StatelessWidget {
                 ),
               );
             } catch (e, st) {
-              print('Lottie error $e\n$st');
+              debugPrint('Lottie error $e\n$st');
               return Container(
                 color: Colors.transparent,
                 child: const Center(

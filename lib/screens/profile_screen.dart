@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
 import '../services/userprofile_service.dart';
 import 'login_screen.dart';
@@ -68,14 +69,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _emailController.text = user.email ?? '';
       }
     } catch (e) {
-      print('Error loading profile: $e');
+      debugPrint('Error loading profile: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading profile: $e')),
         );
       }
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -191,7 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 height: 72,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: Colors.black.withOpacity(0.28),
+                                  color: Colors.black.withValues(alpha: 0.28),
                                   border: Border.all(color: Colors.white, width: 2),
                                 ),
                                 child: const Icon(Icons.check, color: Colors.white),
@@ -245,15 +246,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (user != null) {
                   try {
                     // This requires re-authentication for security
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please contact support to change your email'),
-                      ),
-                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please contact support to change your email'),
+                        ),
+                      );
+                    }
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
                   }
                 }
               },
@@ -392,7 +397,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               border: Border.all(color: Colors.white, width: 4),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
+                  color: Colors.black.withValues(alpha: 0.15),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 ),
@@ -508,11 +513,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 horizontal: 20,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFFA726).withOpacity(0.85),
+                                color: const Color(0xFFFFA726).withValues(alpha: 0.85),
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.15),
+                                    color: Colors.black.withValues(alpha: 0.15),
                                     blurRadius: 20,
                                     offset: const Offset(0, 10),
                                   ),
@@ -568,11 +573,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.95),
+                                color: Colors.white.withValues(alpha: 0.95),
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: Colors.black.withValues(alpha: 0.1),
                                     blurRadius: 20,
                                     offset: const Offset(0, 10),
                                   ),

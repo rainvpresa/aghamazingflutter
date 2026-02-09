@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:aghamazing1/screens/welcome_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'services/auth_service.dart';
+import 'services/energy_manager.dart';  // ADD THIS
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/profile_screen.dart';
@@ -15,6 +16,9 @@ void main() async {
 
   // Initialize Firebase
   await Firebase.initializeApp();
+
+  // Initialize Energy System (ADD THIS)
+  await EnergyManager.instance.initialize();
 
   runApp(const MyApp());
 }
@@ -34,7 +38,7 @@ class MyApp extends StatelessWidget {
       // Use AuthWrapper to check authentication state
       home: const AuthWrapper(),
       routes: {
-        '/welcome': (_) => WelcomeScreen(),
+        '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginScreen(),
         '/register': (_) => const RegisterScreen(),
         '/mainmenu': (_) => const MainMenuScreen(),
@@ -71,7 +75,7 @@ class AuthWrapper extends StatelessWidget {
         }
 
         // User is not logged in - show welcome screen
-        return WelcomeScreen();
+        return const WelcomeScreen();
       },
     );
   }

@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:aghamazing1/services/api_client.dart'; // <- use package import
-// import 'package:aghamazing1/services/auth_api.dart';   // optional, for catching ApiException
-import '../services/auth_service.dart'; // Add this import at the top
-
+import '../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -133,15 +129,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Header - Flex 0 (fixed)
+                    // Header - Fixed
                     Container(
                       padding: EdgeInsets.symmetric(
                         horizontal: horizontalPadding,
                         vertical: verticalPadding,
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1866B2),
-                        borderRadius: const BorderRadius.only(
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF1866B2),
+                        borderRadius: BorderRadius.only(
                           topLeft: Radius.circular(16),
                           topRight: Radius.circular(16),
                         ),
@@ -173,9 +169,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
 
-                    // Scrollable content - Flex 1 (flexible)
+                    // Scrollable content
                     Flexible(
-                      flex: 1,
                       child: SingleChildScrollView(
                         padding: EdgeInsets.all(horizontalPadding),
                         child: Column(
@@ -240,7 +235,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
 
-                    // Footer button - Flex 0 (fixed)
+                    // Footer button
                     Padding(
                       padding: EdgeInsets.all(horizontalPadding),
                       child: SizedBox(
@@ -349,7 +344,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             barrierDismissible: false,
             builder: (context) => AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Row(
+              title: const Row(
                 children: [
                   Icon(Icons.email, color: Color(0xFF1866B2)),
                   SizedBox(width: 12),
@@ -360,14 +355,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('We\'ve sent a verification email to:'),
-                  SizedBox(height: 8),
+                  const Text('We\'ve sent a verification email to:'),
+                  const SizedBox(height: 8),
                   Text(
                     email,
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 16),
-                  Text('Please check your inbox and click the verification link to activate your account.'),
+                  const SizedBox(height: 16),
+                  const Text('Please check your inbox and click the verification link to activate your account.'),
                 ],
               ),
               actions: [
@@ -376,7 +371,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Navigator.of(context).pop();
                     Navigator.of(context).pushReplacementNamed('/login');
                   },
-                  child: Text('Go to Login'),
+                  child: const Text('Go to Login'),
                 ),
               ],
             ),
@@ -403,6 +398,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) setState(() => _isCreating = false);
     }
   }
+
   // Helper that builds a pill-shaped input with animated border color
   Widget _buildPillField({
     required Widget child,
@@ -415,7 +411,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       duration: const Duration(milliseconds: 220),
       height: height,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.98),
+        color: Colors.white.withValues(alpha: 0.98),
         borderRadius: BorderRadius.circular(28),
         border: bc == Colors.transparent ? null : Border.all(color: bc, width: 3),
         boxShadow: const [
@@ -646,7 +642,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 borderRadius: BorderRadius.circular(28),
                                 boxShadow: _canCreate
                                     ? [
-                                  BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4))
+                                  const BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4))
                                 ]
                                     : null,
                               ),
@@ -679,10 +675,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   text: 'Existing user? ',
                                   style: TextStyle(color: Colors.black87, fontSize: isSmall ? 13 : 14),
                                   children: [
-                                    TextSpan(
+                                    const TextSpan(
                                       text: 'Login',
                                       style: TextStyle(
-                                        color: const Color(0xFF1957A8),
+                                        color: Color(0xFF1957A8),
                                         fontWeight: FontWeight.w600,
                                         decoration: TextDecoration.underline,
                                       ),

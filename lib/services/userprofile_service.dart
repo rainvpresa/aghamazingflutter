@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'energy_manager.dart';
 import 'dart:async';
 
 class UserProfileService {
@@ -25,7 +26,7 @@ class UserProfileService {
       }
       return null;
     } catch (e) {
-      print('Error getting user profile: $e');
+      debugPrint('Error getting user profile: $e');
       return null;
     }
   }
@@ -61,7 +62,7 @@ class UserProfileService {
 
       return true;
     } catch (e) {
-      print('Error updating profile: $e');
+      debugPrint('Error updating profile: $e');
       return false;
     }
   }
@@ -89,7 +90,7 @@ class UserProfileService {
 
       return true;
     } catch (e) {
-      print('Error deleting account: $e');
+      debugPrint('Error deleting account: $e');
       return false;
     }
   }
@@ -110,7 +111,7 @@ class UserProfileService {
       }
       return 0;
     } catch (e) {
-      print('Error getting coins: $e');
+      debugPrint('Error getting coins: $e');
       return 0;
     }
   }
@@ -150,7 +151,7 @@ class UserProfileService {
 
       return true;
     } catch (e) {
-      print('Error adding coins: $e');
+      debugPrint('Error adding coins: $e');
       return false;
     }
   }
@@ -201,7 +202,7 @@ class UserProfileService {
 
       return success;
     } catch (e) {
-      print('Error spending coins: $e');
+      debugPrint('Error spending coins: $e');
       return false;
     }
   }
@@ -221,7 +222,7 @@ class UserProfileService {
           .map((doc) => doc.data() as Map<String, dynamic>)
           .toList();
     } catch (e) {
-      print('Error getting coin history: $e');
+      debugPrint('Error getting coin history: $e');
       return [];
     }
   }
@@ -242,7 +243,7 @@ class UserProfileService {
       }
       return 0;
     } catch (e) {
-      print('Error getting energy: $e');
+      debugPrint('Error getting energy: $e');
       return 0;
     }
   }
@@ -284,7 +285,7 @@ class UserProfileService {
 
       return success;
     } catch (e) {
-      print('Error using energy: $e');
+      debugPrint('Error using energy: $e');
       return false;
     }
   }
@@ -316,7 +317,7 @@ class UserProfileService {
 
       return true;
     } catch (e) {
-      print('Error restoring energy: $e');
+      debugPrint('Error restoring energy: $e');
       return false;
     }
   }
@@ -330,7 +331,7 @@ class UserProfileService {
       });
       return true;
     } catch (e) {
-      print('Error setting max energy: $e');
+      debugPrint('Error setting max energy: $e');
       return false;
     }
   }
@@ -381,7 +382,7 @@ class UserProfileService {
 
       return true;
     } catch (e) {
-      print('Error updating game stats: $e');
+      debugPrint('Error updating game stats: $e');
       return false;
     }
   }
@@ -411,7 +412,7 @@ class UserProfileService {
         'winRate': 0.0,
       };
     } catch (e) {
-      print('Error getting game stats: $e');
+      debugPrint('Error getting game stats: $e');
       return {
         'gamesPlayed': 0,
         'gamesWon': 0,
@@ -426,7 +427,6 @@ class UserProfileService {
     return (gamesWon / gamesPlayed) * 100;
   }
 }
-
 // ============================================================
 // SESSION SERVICE (for UI state management)
 // ============================================================
@@ -437,7 +437,7 @@ class SessionService extends ChangeNotifier {
 
   final UserProfileService _profileService = UserProfileService();
 
-  // Your existing properties
+  // Properties
   int _bubblePower = 0;
   int _energy = 0;
 
@@ -445,26 +445,37 @@ class SessionService extends ChangeNotifier {
   int get energy => _energy;
 
   StreamSubscription<DocumentSnapshot>? _subscription;
+  Timer? _energyTimer;
 
   // Initialize - called from MainMenuScreen
   void init() {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
-    // Listen to real-time updates from Firestore
+    // Listen to Firebase coins (bubble power)
     _subscription = _profileService.streamUserProfile().listen((snapshot) {
       if (snapshot.exists) {
         final data = snapshot.data() as Map<String, dynamic>;
         _bubblePower = data['coins'] ?? 0;  // Use coins as bubble power
-        _energy = data['energy'] ?? 0;
         notifyListeners();
       }
     });
+
+    // Load local energy and update every second
+    _loadLocalEnergy();
+    _energyTimer = Timer.periodic(const Duration(seconds: 1), (_) => _loadLocalEnergy());
+  }
+
+  // Load energy from EnergyManager (local storage)
+  Future<void> _loadLocalEnergy() async {
+    _energy = await EnergyManager.instance.getCurrentEnergy();
+    notifyListeners();
   }
 
   @override
   void dispose() {
     _subscription?.cancel();
+    _energyTimer?.cancel();
     super.dispose();
   }
 }
