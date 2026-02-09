@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../widgets/trivia_button.dart';
-import '../widgets/confetti_effect.dart';
+import '../../widgets/trivia_button.dart';
+import '../../widgets/confetti_effect.dart';
+import '../../services/trivia_game_manager.dart';
+import '../../services/energy_manager.dart';
 import 'trivia2_screen.dart';
 
 class MainTriviaScreen extends StatefulWidget {
@@ -17,9 +19,73 @@ class _MainTriviaScreenState extends State<MainTriviaScreen> {
   AnswerState _answer4State = AnswerState.idle;
   bool _showConfetti = false;
   bool _showGoodJob = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkEnergyAndStartGame();
+  }
+
+  Future<void> _checkEnergyAndStartGame() async {
+    const int energyCost = 10;
+
+    try {
+      final currentEnergy = await EnergyManager.instance.getCurrentEnergy();
+      
+      if (currentEnergy < energyCost) {
+        if (!mounted) return;
+
+        // Not enough energy - show dialog and go back
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Text('Not Enough Energy'),
+            content: Text('You need $energyCost energy to play.\nYou have: $currentEnergy'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close dialog
+                  Navigator.of(context).pop(); // Exit trivia
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // Deduct energy
+      final success = await EnergyManager.instance.useEnergy(amount: energyCost);
+      if (!success) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to consume energy')),
+        );
+        Navigator.of(context).pop();
+        return;
+      }
+
+      // Start game logic
+      TriviaGameManager.instance.startGame();
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error starting game: $e');
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
 
   void _checkAnswer(int answerIndex) {
     if (answerIndex == 2 && _answer2State == AnswerState.idle) {
+      // Correct answer
+      TriviaGameManager.instance.recordCorrectAnswer();
       setState(() {
         _answer1State = AnswerState.idle;
         _answer2State = AnswerState.correct;
@@ -39,6 +105,9 @@ class _MainTriviaScreenState extends State<MainTriviaScreen> {
       return;
     }
 
+    // Wrong answer - record it
+    TriviaGameManager.instance.recordWrongAnswer();
+
     setState(() {
       switch (answerIndex) {
         case 1:
@@ -56,6 +125,14 @@ class _MainTriviaScreenState extends State<MainTriviaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     final mq = MediaQuery.of(context);
     final screenW = mq.size.width;
     final screenH = mq.size.height;
@@ -92,7 +169,6 @@ class _MainTriviaScreenState extends State<MainTriviaScreen> {
             ),
           ),
 
-          // Scientist Image
           Positioned(
             top: screenH * 0.280,
             left: screenW * 0.14,
@@ -126,7 +202,10 @@ class _MainTriviaScreenState extends State<MainTriviaScreen> {
             width: screenW * 0.21,
             height: screenH * 0.048,
             child: GestureDetector(
-              onTap: () => Navigator.pop(context),
+              onTap: () {
+                TriviaGameManager.instance.reset(); // Reset game if user quits
+                Navigator.pop(context);
+              },
               child: Image.asset(
                 'assets/images/pngs/back_btn.png',
                 fit: BoxFit.fill,

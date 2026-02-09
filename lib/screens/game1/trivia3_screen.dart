@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:aghamazing1/widgets/trivia_button.dart';
-import 'package:aghamazing1/widgets/confetti_effect.dart';
+import '../../widgets/trivia_button.dart';
+import '../../widgets/confetti_effect.dart';
+import '../../services/trivia_game_manager.dart';
 import 'you_won_screen.dart';
 
 class Trivia3Screen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _Trivia3ScreenState extends State<Trivia3Screen> {
 
   void _checkAnswer(int answerIndex) {
     if (answerIndex == 4 && _answer4State == AnswerState.idle) {
+      TriviaGameManager.instance.recordCorrectAnswer();
       setState(() {
         _answer1State = AnswerState.idle;
         _answer2State = AnswerState.idle;
@@ -35,6 +37,10 @@ class _Trivia3ScreenState extends State<Trivia3Screen> {
         );
       });
       return;
+    }
+
+    if (answerIndex != 4) {
+      TriviaGameManager.instance.recordWrongAnswer();
     }
 
     setState(() {

@@ -3,7 +3,7 @@ import 'package:camera/camera.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
-import 'main_trivia_screen.dart';
+import 'game1/main_trivia_screen.dart';
 
 class ARScanScreen extends StatefulWidget {
   const ARScanScreen({super.key});

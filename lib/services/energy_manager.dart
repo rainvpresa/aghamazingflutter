@@ -14,6 +14,7 @@ class EnergyManager {
   static const String _keyEnergy = 'current_energy';
   static const String _keyLastUpdate = 'last_energy_update';
   static const String _keyLastDailyReset = 'last_daily_reset';
+  static const String _keyLastSyncTime = 'last_energy_sync_time';
 
   // ============================================================
   // CORE ENERGY METHODS
@@ -93,6 +94,43 @@ class EnergyManager {
     int secondsUntilNext = await getSecondsUntilNextEnergy();
 
     return secondsNeeded - (energyRegenMinutes * 60) + secondsUntilNext;
+  }
+
+  // ============================================================
+  // SYNC METHODS (Hybrid approach - sync with Firebase)
+  // ============================================================
+
+  /// Sync local energy with Firebase
+  /// Call this periodically or when internet connection is restored
+  Future<bool> syncWithFirebase(
+      Future<bool> Function(int energy) firebaseUpdateFn,
+      ) async {
+    try {
+      int currentEnergy = await getCurrentEnergy();
+
+      // Update Firebase with current local energy
+      bool success = await firebaseUpdateFn(currentEnergy);
+
+      if (success) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          _keyLastSyncTime,
+          DateTime.now().toIso8601String(),
+        );
+      }
+
+      return success;
+    } catch (e) {
+      print('Error syncing energy with Firebase: $e');
+      return false;
+    }
+  }
+
+  /// Get last sync time
+  Future<DateTime?> getLastSyncTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final syncTimeStr = prefs.getString(_keyLastSyncTime);
+    return syncTimeStr != null ? DateTime.parse(syncTimeStr) : null;
   }
 
   // ============================================================
@@ -193,6 +231,7 @@ class EnergyManager {
     await prefs.remove(_keyEnergy);
     await prefs.remove(_keyLastUpdate);
     await prefs.remove(_keyLastDailyReset);
+    await prefs.remove(_keyLastSyncTime);
   }
 
   // ============================================================

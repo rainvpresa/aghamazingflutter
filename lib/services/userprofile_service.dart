@@ -228,115 +228,6 @@ class UserProfileService {
   }
 
   // ============================================================
-  // ENERGY MANAGEMENT
-  // ============================================================
-
-  /// Get current energy
-  Future<int> getEnergy({String? userId}) async {
-    try {
-      String uid = userId ?? currentUserId!;
-      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
-
-      if (doc.exists) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        return data['energy'] ?? 0;
-      }
-      return 0;
-    } catch (e) {
-      debugPrint('Error getting energy: $e');
-      return 0;
-    }
-  }
-
-  /// Use energy (when playing a game)
-  Future<bool> useEnergy({required int amount}) async {
-    try {
-      String uid = currentUserId!;
-
-      bool success = false;
-
-      await _firestore.runTransaction((transaction) async {
-        DocumentReference userRef = _firestore.collection('users').doc(uid);
-        DocumentSnapshot snapshot = await transaction.get(userRef);
-
-        if (!snapshot.exists) {
-          throw Exception('User does not exist');
-        }
-
-        Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
-        int currentEnergy = data['energy'] ?? 0;
-
-        // Check if user has enough energy
-        if (currentEnergy < amount) {
-          success = false;
-          return;
-        }
-
-        int newEnergy = currentEnergy - amount;
-
-        // Update energy
-        transaction.update(userRef, {
-          'energy': newEnergy,
-          'lastEnergyUpdate': FieldValue.serverTimestamp(),
-        });
-
-        success = true;
-      });
-
-      return success;
-    } catch (e) {
-      debugPrint('Error using energy: $e');
-      return false;
-    }
-  }
-
-  /// Restore energy (can be called periodically or after certain actions)
-  Future<bool> restoreEnergy({required int amount}) async {
-    try {
-      String uid = currentUserId!;
-
-      await _firestore.runTransaction((transaction) async {
-        DocumentReference userRef = _firestore.collection('users').doc(uid);
-        DocumentSnapshot snapshot = await transaction.get(userRef);
-
-        if (!snapshot.exists) {
-          throw Exception('User does not exist');
-        }
-
-        Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
-        int currentEnergy = data['energy'] ?? 0;
-        int maxEnergy = data['maxEnergy'] ?? 100; // Default max energy
-
-        int newEnergy = (currentEnergy + amount).clamp(0, maxEnergy);
-
-        transaction.update(userRef, {
-          'energy': newEnergy,
-          'lastEnergyUpdate': FieldValue.serverTimestamp(),
-        });
-      });
-
-      return true;
-    } catch (e) {
-      debugPrint('Error restoring energy: $e');
-      return false;
-    }
-  }
-
-  /// Set max energy
-  Future<bool> setMaxEnergy({required int maxEnergy}) async {
-    try {
-      String uid = currentUserId!;
-      await _firestore.collection('users').doc(uid).update({
-        'maxEnergy': maxEnergy,
-      });
-      return true;
-    } catch (e) {
-      debugPrint('Error setting max energy: $e');
-      return false;
-    }
-  }
-
-  // ============================================================
   // GAME STATS
   // ============================================================
 
@@ -426,11 +317,65 @@ class UserProfileService {
     if (gamesPlayed == 0) return 0.0;
     return (gamesWon / gamesPlayed) * 100;
   }
-}
+
+  // ============================================================
+  // LEADERBOARD
+  // ============================================================
+
+  /// Get leaderboard (top players by total score/gems)
+  Future<List<Map<String, dynamic>>> getLeaderboard({int limit = 10}) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('users')
+          .orderBy('totalScore', descending: true)
+          .limit(limit)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          'userId': doc.id,
+          'displayName': data['displayName'] ?? 'Anonymous',
+          'profileImageUrl': data['profileImageUrl'],
+          'totalScore': data['totalScore'] ?? 0,
+          'gamesPlayed': data['gamesPlayed'] ?? 0,
+          'gamesWon': data['gamesWon'] ?? 0,
+        };
+      }).toList();
+    } catch (e) {
+      debugPrint('Error getting leaderboard: $e');
+      return [];
+    }
+  }
+
+  /// Get user's leaderboard rank
+  Future<int> getUserRank({String? userId}) async {
+    try {
+      String uid = userId ?? currentUserId!;
+
+      // Get user's score
+      DocumentSnapshot userDoc = await _firestore.collection('users').doc(uid).get();
+      if (!userDoc.exists) return 0;
+
+      int userScore = (userDoc.data() as Map<String, dynamic>)['totalScore'] ?? 0;
+
+      // Count how many users have higher score
+      QuerySnapshot higherScores = await _firestore
+          .collection('users')
+          .where('totalScore', isGreaterThan: userScore)
+          .get();
+
+      return higherScores.docs.length + 1; // +1 because rank starts at 1
+    } catch (e) {
+      debugPrint('Error getting user rank: $e');
+      return 0;
+    }
+  }
+} // <-- END OF UserProfileService CLASS
+
 // ============================================================
 // SESSION SERVICE (for UI state management)
 // ============================================================
-
 class SessionService extends ChangeNotifier {
   static final SessionService instance = SessionService._();
   SessionService._();
@@ -440,9 +385,11 @@ class SessionService extends ChangeNotifier {
   // Properties
   int _bubblePower = 0;
   int _energy = 0;
+  int _gems = 0;
 
   int get bubblePower => _bubblePower;
   int get energy => _energy;
+  int get gems => _gems;
 
   StreamSubscription<DocumentSnapshot>? _subscription;
   Timer? _energyTimer;
@@ -452,11 +399,12 @@ class SessionService extends ChangeNotifier {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
-    // Listen to Firebase coins (bubble power)
+    // Listen to Firebase coins (bubble power) and gems
     _subscription = _profileService.streamUserProfile().listen((snapshot) {
       if (snapshot.exists) {
         final data = snapshot.data() as Map<String, dynamic>;
-        _bubblePower = data['coins'] ?? 0;  // Use coins as bubble power
+        _bubblePower = data['coins'] ?? 0;
+        _gems = data['totalScore'] ?? 0;
         notifyListeners();
       }
     });

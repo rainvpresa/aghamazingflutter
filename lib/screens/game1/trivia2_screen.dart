@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../widgets/trivia_button.dart';
-import '../widgets/confetti_effect.dart';
+import '../../widgets/trivia_button.dart';
+import '../../widgets/confetti_effect.dart';
+import '../../services/trivia_game_manager.dart';
 import 'trivia3_screen.dart';
 
 class Trivia2Screen extends StatefulWidget {
@@ -20,6 +21,7 @@ class _Trivia2ScreenState extends State<Trivia2Screen> {
 
   void _checkAnswer(int answerIndex) {
     if (answerIndex == 3 && _answer3State == AnswerState.idle) {
+      TriviaGameManager.instance.recordCorrectAnswer();
       setState(() {
         _answer1State = AnswerState.idle;
         _answer2State = AnswerState.idle;
@@ -37,6 +39,10 @@ class _Trivia2ScreenState extends State<Trivia2Screen> {
         );
       });
       return;
+    }
+
+    if (answerIndex != 3) {
+      TriviaGameManager.instance.recordWrongAnswer();
     }
 
     setState(() {
@@ -92,9 +98,8 @@ class _Trivia2ScreenState extends State<Trivia2Screen> {
             ),
           ),
 
-          // Scientist Image - Moved UP to remove gap
           Positioned(
-            top: screenH * 0.280, // Moved from 0.294
+            top: screenH * 0.280,
             left: screenW * 0.14,
             width: screenW * 0.72,
             height: screenH * 0.243,

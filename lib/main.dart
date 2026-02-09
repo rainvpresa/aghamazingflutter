@@ -8,7 +8,7 @@ import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/mainmenu_screen.dart';
-import 'screens/main_trivia_screen.dart';
+import 'screens/game1/main_trivia_screen.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized

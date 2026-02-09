@@ -1,10 +1,18 @@
 {
   "btn_select": "assets/images/pngs/btn_select.png",
   "btn_try": "assets/images/pngs/btn_try.png",
-  "bubble_power":"assets/images/pngs/bubble_power.png",
+  "bubble_power": "assets/images/pngs/bubble_power.png",
+  "gems": "assets/images/pngs/gems.png",
   "energy": "assets/images/pngs/energy.png",
   "btn_arscan": "assets/images/pngs/btn_scan.png",
   "btn_profile": "assets/images/pngs/btn_profile.png",
-  "btn_chatbot":  "assets/images/pngs/btn_chatbot.png",
-  "mascot_lottie": "assets/animations/smarty_flap.json"
+  "btn_chatbot": "assets/images/pngs/btn_chatbot.png",
+  "mascot_lottie": "assets/animations/smarty_flap.json",
+  "leaderboard_bg": "assets/images/pngs/leaderboard_bg.png",
+  "leaderboard_emblem": "assets/images/pngs/star.png",
+  "btn_gem_grab": "assets/images/pngs/btn_gem_grab.png",
+  "rank_1_badge": "assets/images/pngs/rank_1_gold.png",
+  "rank_2_badge": "assets/images/pngs/rank_2_silver.png",
+  "rank_3_badge": "assets/images/pngs/rank_3_bronze.png",
+  "leaderboard_item_bg": "assets/images/pngs/leaderboard_item_bg.png"
 }

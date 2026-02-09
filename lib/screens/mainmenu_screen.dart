@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import 'package:lottie/lottie.dart';
 import '../services/userprofile_service.dart';
+import '../services/energy_manager.dart';
 import 'profile_screen.dart';
 import 'chatbot_screen.dart';
 import 'arscan_screen.dart';
@@ -63,13 +65,42 @@ class _MainMenuBody extends StatefulWidget {
   @override
   State<_MainMenuBody> createState() => _MainMenuBodyState();
 }
-
 class _MainMenuBodyState extends State<_MainMenuBody> {
+  Timer? _energyRegenTimer;
+  int _timeUntilNextRegen = 0;
+  final int _maxEnergy = 100;
+
+  // Leaderboard state
+  List<Map<String, dynamic>> _leaderboardData = [];
+  bool _isLoadingLeaderboard = false;
+
   @override
   void initState() {
     super.initState();
     SessionService.instance.init();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _precache());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _precache();
+      _startEnergyRegenTimer();
+      _loadLeaderboard(); // Load leaderboard data
+    });
+  }
+
+  Future<void> _loadLeaderboard() async {
+    setState(() => _isLoadingLeaderboard = true);
+    try {
+      final data = await UserProfileService().getLeaderboard(limit: 3);
+      if (mounted) {
+        setState(() {
+          _leaderboardData = data;
+          _isLoadingLeaderboard = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading leaderboard: $e');
+      if (mounted) {
+        setState(() => _isLoadingLeaderboard = false);
+      }
+    }
   }
 
   Future<void> _precache() async {
@@ -87,7 +118,40 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
     }
   }
 
+  void _startEnergyRegenTimer() {
+    _energyRegenTimer?.cancel();
+
+    // Start timer that updates every second
+    _energyRegenTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (!mounted) return;
+
+      final info = await EnergyManager.instance.getEnergyInfo();
+      final int current = info['current'] ?? 0;
+      final int secondsNext = info['secondsUntilNext'] ?? 0;
+
+      if (current < _maxEnergy) {
+        if (mounted) {
+          setState(() {
+            _timeUntilNextRegen = secondsNext;
+          });
+        }
+      } else {
+        if (mounted && _timeUntilNextRegen != 0) {
+          setState(() {
+            _timeUntilNextRegen = 0;
+          });
+        }
+      }
+    });
+  }
+
   String asset(String key) => widget.uiAssets[key] ?? '';
+
+  String _formatTime(int seconds) {
+    final minutes = seconds ~/ 60;
+    final secs = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -128,20 +192,26 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                     child: IntrinsicHeight(
                       child: Column(
                         children: [
-                          // Top stats row
+                          // Top stats rowr
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
+                                // Bubble Power
                                 Consumer<SessionService>(
                                   builder: (context, s, _) => IconStatButton(
                                     assetPath: asset('bubble_power'),
                                     width: topIconW,
                                     height: topIconW * 0.35,
                                     value: s.bubblePower.toString(),
-                                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Bubble power tapped')),
+                                    onTap: () => showStyledSnackBar(
+                                      context,
+                                      title: 'Bubble Power',
+                                      message: 'You have ${s.bubblePower} coins',
+                                      backgroundColor: const Color(0xFFF2C94C),
+                                      icon: Icons.star,
+                                      iconColor: Colors.white,
                                     ),
                                     textStyle: const TextStyle(
                                       color: Colors.white,
@@ -150,18 +220,48 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                   ),
                                 ),
                                 const SizedBox(width: 10),
+
+                                // Gems
                                 Consumer<SessionService>(
                                   builder: (context, s, _) => IconStatButton(
-                                    assetPath: asset('energy'),
+                                    assetPath: asset('gems'),
                                     width: topIconW,
                                     height: topIconW * 0.35,
-                                    value: s.energy.toString(),
-                                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Energy tapped')),
+                                    value: s.gems.toString(), // ← NOW USES REAL DATA
+                                    onTap: () => showStyledSnackBar(
+                                      context,
+                                      title: 'Gems',
+                                      message: 'You have ${s.gems} gems',
+                                      backgroundColor: const Color(0xFF6C5CE7),
+                                      icon: Icons.diamond,
+                                      iconColor: Colors.white,
                                     ),
                                     textStyle: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+
+                                // Energy with Timer
+                                Consumer<SessionService>(
+                                  builder: (context, s, _) => _EnergyDisplay(
+                                    assetPath: asset('energy'),
+                                    width: topIconW,
+                                    height: topIconW * 0.35,
+                                    currentEnergy: s.energy,
+                                    maxEnergy: _maxEnergy,
+                                    timeLeft: _timeUntilNextRegen,
+                                    onTap: () => showStyledSnackBar(
+                                      context,
+                                      title: 'Energy',
+                                      message: s.energy < _maxEnergy
+                                          ? 'Next regen in: ${_formatTime(_timeUntilNextRegen)}'
+                                          : 'Energy is full!',
+                                      backgroundColor: const Color(0xFFE84393),
+                                      icon: Icons.bolt,
+                                      iconColor: Colors.white,
                                     ),
                                   ),
                                 ),
@@ -254,12 +354,22 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                     width: selectW,
                                     height: selectW * 0.30,
                                     fill: true,
-                                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Mascot Selected')),
+                                    onTap: () => showStyledSnackBar(
+                                      context,
+                                      title: 'Mascot Selected',
+                                      message: 'Smarty is now your active mascot!',
+                                      backgroundColor: const Color(0xFF00B894),
+                                      icon: Icons.check_circle,
+                                      iconColor: Colors.white,
                                     ),
                                     fallbackWidget: ElevatedButton(
-                                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Mascot Selected')),
+                                      onPressed: () => showStyledSnackBar(
+                                        context,
+                                        title: 'Mascot Selected',
+                                        message: 'Smarty is now your active mascot!',
+                                        backgroundColor: const Color(0xFF00B894),
+                                        icon: Icons.check_circle,
+                                        iconColor: Colors.white,
                                       ),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: const Color(0xFFf2c94c),
@@ -283,7 +393,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                 image: asset('leaderboard_bg').isNotEmpty
                                     ? DecorationImage(
                                   image: AssetImage(asset('leaderboard_bg')),
-                                  fit: BoxFit.fill,
+                                  fit: BoxFit.cover,
                                 )
                                     : null,
                                 color: asset('leaderboard_bg').isEmpty
@@ -292,9 +402,11 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Row(
                                     children: [
+                                      // Trophy icon
                                       if (asset('leaderboard_emblem').isNotEmpty)
                                         Image.asset(
                                           asset('leaderboard_emblem'),
@@ -305,77 +417,126 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                         Container(
                                           width: 44,
                                           height: 44,
-                                          decoration: const BoxDecoration(
-                                            color: Colors.purple,
+                                          decoration: BoxDecoration(
+                                            color: Colors.amber,
                                             shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.amber.withOpacity(0.5),
+                                                blurRadius: 8,
+                                                spreadRadius: 2,
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Icon(
+                                            Icons.emoji_events,
+                                            color: Colors.white,
+                                            size: 28,
                                           ),
                                         ),
                                       const SizedBox(width: 12),
                                       const Expanded(
-                                        child: Text(
-                                          'LEADERBOARDS',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
+                                        child: SizedBox.shrink(),
                                       ),
                                       ImageAssetButton(
                                         assetPath: asset('btn_try'),
                                         width: tryW,
                                         height: tryW * 0.66,
                                         fill: true,
-                                        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('TRY pressed')),
-                                        ),
+                                        onTap: _loadLeaderboard,
                                         fallbackWidget: ElevatedButton(
-                                          onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('TRY pressed')),
-                                          ),
+                                          onPressed: _loadLeaderboard,
                                           child: const Text('TRY'),
                                         ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 10),
-                                  const _LeaderboardItem(
-                                    rank: 1,
-                                    title: 'EPIC',
-                                    color: Colors.orange,
-                                  ),
-                                  const _LeaderboardItem(
-                                    rank: 2,
-                                    title: 'AWESOME',
-                                    color: Colors.red,
-                                  ),
-                                  const _LeaderboardItem(
-                                    rank: 3,
-                                    title: 'GOOD',
-                                    color: Colors.green,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  if (asset('btn_gem_grab').isNotEmpty)
-                                    ImageAssetButton(
-                                      assetPath: asset('btn_gem_grab'),
-                                      width: double.infinity,
-                                      height: 56,
-                                      fill: true,
-                                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Open Gem Grab')),
+
+                                  // Dynamic leaderboard content with fixed height
+                                  SizedBox(
+                                    height: 200,
+                                    child: _isLoadingLeaderboard
+                                        ? const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Colors.amber,
                                       ),
-                                      fallbackWidget: const SizedBox.shrink(),
                                     )
-                                  else
-                                    ElevatedButton(
-                                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Open Gem Grab')),
+                                        : _leaderboardData.isEmpty
+                                        ? const Center(
+                                      child: Text(
+                                        'No players yet!\nBe the first to play!',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 14,
+                                        ),
                                       ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.deepPurple,
-                                      ),
-                                      child: const Text('GEM GRAB'),
+                                    )
+                                        : ListView.builder(
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      itemCount: _leaderboardData.length,
+                                      itemBuilder: (context, index) {
+                                        final player = _leaderboardData[index];
+                                        return _LeaderboardItem(
+                                          rank: index + 1,
+                                          displayName: player['displayName'] ?? 'Anonymous',
+                                          score: player['totalScore'] ?? 0,
+                                          itemBgAsset: asset('leaderboard_item_bg'),
+                                          rankBadgeAsset: asset('rank_${index + 1}_badge'),
+                                        );
+                                      },
                                     ),
+                                  ),
                                 ],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 1),
+                          // Gem Grab button - NOW OUTSIDE LEADERBOARDS
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: screenW * 0.60,
+                                ),
+                                child: AspectRatio(
+                                  aspectRatio: 983 / 278,
+                                  child: asset('btn_gem_grab').isNotEmpty
+                                      ? ImageAssetButton(
+                                    assetPath: asset('btn_gem_grab'),
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    fill: true,
+                                    onTap: () => showStyledSnackBar(
+                                      context,
+                                      title: 'Gem Grab',
+                                      message: 'Starting Gem Grab mini-game...',
+                                      backgroundColor: const Color(0xFF6C5CE7),
+                                      icon: Icons.diamond,
+                                      iconColor: Colors.white,
+                                    ),
+                                    fallbackWidget: const SizedBox.shrink(),
+                                  )
+                                      : ElevatedButton(
+                                    onPressed: () => showStyledSnackBar(
+                                      context,
+                                      title: 'Gem Grab',
+                                      message: 'Starting Gem Grab mini-game...',
+                                      backgroundColor: const Color(0xFF6C5CE7),
+                                      icon: Icons.diamond,
+                                      iconColor: Colors.white,
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.deepPurple,
+                                      minimumSize: const Size(double.infinity, 48),
+                                    ),
+                                    child: const Text('GEM GRAB'),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -392,6 +553,12 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _energyRegenTimer?.cancel();
+    super.dispose();
   }
 }
 
@@ -445,6 +612,94 @@ class IconStatButton extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Energy display with timer
+class _EnergyDisplay extends StatelessWidget {
+  final String assetPath;
+  final double width;
+  final double height;
+  final int currentEnergy;
+  final int maxEnergy;
+  final int timeLeft;
+  final VoidCallback? onTap;
+
+  const _EnergyDisplay({
+    required this.assetPath,
+    required this.width,
+    required this.height,
+    required this.currentEnergy,
+    required this.maxEnergy,
+    required this.timeLeft,
+    this.onTap,
+  });
+
+  String _formatTime(int seconds) {
+    final minutes = seconds ~/ 60;
+    final secs = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isRegenerating = currentEnergy < maxEnergy;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Background image
+            Image.asset(
+              assetPath,
+              width: width,
+              height: height,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: width,
+                height: height,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+
+            // Energy text and timer
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$currentEnergy',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (isRegenerating) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    _formatTime(timeLeft),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ],
             ),
           ],
         ),
@@ -522,15 +777,34 @@ class ImageAssetButton extends StatelessWidget {
   }
 }
 
+/// Updated Leaderboard Item with dynamic data
 class _LeaderboardItem extends StatelessWidget {
   final int rank;
-  final String title;
-  final Color color;
+  final String displayName;
+  final int score;
+  final String itemBgAsset;
+  final String rankBadgeAsset;
+
   const _LeaderboardItem({
     required this.rank,
-    required this.title,
-    required this.color,
+    required this.displayName,
+    required this.score,
+    required this.itemBgAsset,
+    required this.rankBadgeAsset,
   });
+
+  Color _getRankColor(int rank) {
+    switch (rank) {
+      case 1:
+        return const Color(0xFFFFD700); // Gold
+      case 2:
+        return const Color(0xFFC0C0C0); // Silver
+      case 3:
+        return const Color(0xFFCD7F32); // Bronze
+      default:
+        return Colors.grey;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -538,37 +812,156 @@ class _LeaderboardItem extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.black26,
+        image: itemBgAsset.isNotEmpty
+            ? DecorationImage(
+          image: AssetImage(itemBgAsset),
+          fit: BoxFit.fill,
+        )
+            : null,
+        color: itemBgAsset.isEmpty ? Colors.black26 : null,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: color,
-            child: Text(
-              '#$rank',
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
+          // Rank badge/icon
+          if (rankBadgeAsset.isNotEmpty)
+            Image.asset(
+              rankBadgeAsset,
+              width: 40,
+              height: 40,
+              errorBuilder: (context, error, stackTrace) => _buildFallbackBadge(),
+            )
+          else
+            _buildFallbackBadge(),
+
           const SizedBox(width: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+
+          // Display name
+          Expanded(
+            child: Text(
+              displayName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Spacer(),
-          const Text(
-            '9999',
-            style: TextStyle(color: Colors.white70),
+
+          const SizedBox(width: 8),
+
+          // Score with gem icon
+          Row(
+            children: [
+              const Icon(
+                Icons.diamond,
+                color: Color(0xFF6C5CE7),
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                score.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
-}
 
+  Widget _buildFallbackBadge() {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: _getRankColor(rank),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: _getRankColor(rank).withOpacity(0.5),
+            blurRadius: 6,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          '#$rank',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+}
+/// Custom styled SnackBar that matches app theme
+void showStyledSnackBar(BuildContext context, {
+  required String title,
+  required String message,
+  required Color backgroundColor,
+  required IconData icon,
+  Color iconColor = Colors.white,
+}) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: iconColor, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      backgroundColor: backgroundColor,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      duration: const Duration(seconds: 2),
+    ),
+  );
+}
 /// Mascot animation
 class _MascotAnimation extends StatelessWidget {
   final String asset;
