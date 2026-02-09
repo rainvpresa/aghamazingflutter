@@ -12,7 +12,7 @@ class GemGrabGameScreen extends StatefulWidget {
   State<GemGrabGameScreen> createState() => _GemGrabGameScreenState();
 }
 
-class _GemGrabGameScreenState extends State<GemGrabGameScreen> {
+class _GemGrabGameScreenState extends State<GemGrabGameScreen> with TickerProviderStateMixin {
   int score = 0;
   int timeLeft = 30;
   bool isGameActive = false;
@@ -23,21 +23,50 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen> {
   int playsRemaining = 3;
   bool isLoading = true;
 
-  // Screen dimensions
-  late double screenHeight;
+  // Animation controllers
+  late AnimationController _pulseController;
+  late AnimationController _floatController;
+  late Animation<double> _pulseAnimation;
+  late Animation<double> _floatAnimation;
 
   @override
   void initState() {
     super.initState();
     loadPlaysRemaining();
+    _initAnimations();
+  }
+
+  void _initAnimations() {
+    // Pulse animation for logo
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    // Float animation for warning box
+    _floatController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _floatAnimation = Tween<double>(begin: -5, end: 5).animate(
+      CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
     gameTimer?.cancel();
+    _pulseController.dispose();
+    _floatController.dispose();
     super.dispose();
   }
-// ---------------------- DEBUG RESET PLAY -------------------------------------
+
+  // ---------------------- DEBUG RESET PLAY -------------------------------------
   Future<void> _resetPlaysDebug() async {
     final prefs = await SharedPreferences.getInstance();
     final today = DateTime.now().toString().substring(0, 10);
@@ -132,24 +161,19 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen> {
 
   void spawnGem() {
     final screenWidth = MediaQuery.of(context).size.width;
-
-    // Random speed: 2 to 5 seconds for falling (slower = easier to see)
     final randomSpeed = 2.0 + (random.nextDouble() * 3.0);
-
     final gemId = DateTime.now().millisecondsSinceEpoch.toString() + random.nextInt(10000).toString();
 
     setState(() {
       gems.add(FallingGem(
         id: gemId,
         left: random.nextDouble() * (screenWidth - 60),
-        points: random.nextInt(3) + 1, // 1-3 points
+        points: random.nextInt(3) + 1,
         fallDuration: randomSpeed,
         spawnTime: DateTime.now(),
       ));
     });
 
-    // Remove gem ONLY after it reaches the bottom + some buffer
-    // Calculate total time = fall duration + buffer for off-screen
     final removalTime = (randomSpeed * 1000).toInt() + 1000;
 
     Future.delayed(Duration(milliseconds: removalTime), () {
@@ -166,8 +190,6 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen> {
       gems.removeWhere((gem) => gem.id == gemId);
       score += points;
     });
-
-    // Haptic feedback
     HapticFeedback.mediumImpact();
   }
 
@@ -183,17 +205,14 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen> {
 
     try {
       final profileService = UserProfileService();
-
       await profileService.addCoins(
         amount: coinsEarned,
         reason: 'Gem Grab game - Score: $score',
       );
-
       await profileService.updateGameStats(
         gamesPlayed: 1,
         totalScore: gemsEarned,
       );
-
       debugPrint('✅ Rewards saved: $coinsEarned coins, $gemsEarned gems');
     } catch (e) {
       debugPrint('❌ Error saving rewards: $e');
@@ -353,6 +372,9 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenW = MediaQuery.of(context).size.width;
+    final screenH = MediaQuery.of(context).size.height;
+
     if (isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -360,227 +382,370 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen> {
     }
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF1a1a2e), Color(0xFF16213e)],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              GestureDetector(
-                onLongPress: _resetPlaysDebug,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.purple.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.purple, width: 2),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.diamond, color: Colors.pink),
-                            const SizedBox(width: 8),
-                            Text(
-                              '$score',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.orange, width: 2),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.timer, color: Colors.white),
-                            const SizedBox(width: 8),
-                            Text(
-                              '$timeLeft',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+      body: Stack(
+        children: [
+          // Background Image
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/backgrounds/gemgrab_bg.png',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFF1a1a2e), Color(0xFF16213e)],
                   ),
                 ),
               ),
+            ),
+          ),
 
-              // Plays Remaining Indicator
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: playsRemaining > 0
-                        ? Colors.green.withOpacity(0.2)
-                        : Colors.red.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: playsRemaining > 0 ? Colors.green : Colors.red,
-                      width: 2,
+          SafeArea(
+            child: Column(
+              children: [
+                // Top bar with back button and stats
+                GestureDetector(
+                  onLongPress: _resetPlaysDebug,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Back button
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ),
+
+                        // Score
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.purple, width: 2),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.diamond, color: Colors.pink, size: 20),
+                              const SizedBox(width: 6),
+                              Text(
+                                '$score',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Timer
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.orange, width: 2),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.timer, color: Colors.white, size: 20),
+                              const SizedBox(width: 6),
+                              Text(
+                                '$timeLeft',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.gamepad,
+                ),
+
+                // Plays Remaining Indicator
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: playsRemaining > 0
+                          ? Colors.green.withOpacity(0.2)
+                          : Colors.red.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
                         color: playsRemaining > 0 ? Colors.green : Colors.red,
-                        size: 20,
+                        width: 2,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Plays Today: $playsRemaining/3',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.gamepad,
+                          color: playsRemaining > 0 ? Colors.green : Colors.red,
+                          size: 18,
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Plays Today: $playsRemaining/3',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Game Area using Flexible/Expanded
+                Expanded(
+                  child: Stack(
+                    children: [
+                      // Falling gems
+                      ...gems.map((gem) => GemWidget(
+                        key: ValueKey(gem.id),
+                        gem: gem,
+                        screenHeight: screenH,
+                        onTap: () => collectGem(gem.id, gem.points),
+                      )),
+
+                      // Start/Instructions overlay
+                      if (!isGameActive)
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: playsRemaining > 0
+                                ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const Spacer(flex: 1),
+
+                                // Animated Logo (pulsing)
+                                Flexible(
+                                  flex: 2,
+                                  child: Center(
+                                    child: ScaleTransition(
+                                      scale: _pulseAnimation,
+                                      child: Image.asset(
+                                        'assets/images/pngs/gemgrab.png',
+                                        width: screenW * 0.85,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) => const Text(
+                                          '💎 GEM GRAB 💎',
+                                          style: TextStyle(
+                                            fontSize: 36,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 16),
+
+                                // Subtext
+                                Flexible(
+                                  flex: 1,
+                                  child: Image.asset(
+                                    'assets/images/pngs/gemgrab_subtext.png',
+                                    width: screenW * 0.60,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) => const Text(
+                                      'Catch the falling gems!',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 5),
+
+                                // Warning Box
+                                Flexible(
+                                  flex: 2,
+                                  child: Image.asset(
+                                    'assets/images/pngs/gemgrab_warning.png',
+                                    width: screenW * 0.45,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) => Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Text(
+                                        '⚡ Watch out!\nGems fall at different speeds!',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.orange,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 30),
+
+                                // Start Button
+                                Flexible(
+                                  flex: 2,
+                                  child: GestureDetector(
+                                    onTap: startGame,
+                                    child: Image.asset(
+                                      'assets/images/pngs/gemgrab_start.png',
+                                      width: screenW * 0.55,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (context, error, stackTrace) => ElevatedButton(
+                                        onPressed: startGame,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.green,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 48,
+                                            vertical: 16,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(30),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'START GAME',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const Spacer(flex: 1),
+                              ],
+                            )
+                                : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                // Out of plays message
+                                const Icon(
+                                  Icons.hourglass_empty,
+                                  size: 100,
+                                  color: Colors.orange,
+                                ),
+                                const SizedBox(height: 24),
+                                const Text(
+                                  '⏰ Out of Plays',
+                                  style: TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: Colors.orange, width: 2),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      const Text(
+                                        "You've used all 3 plays for today!",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const Text(
+                                        'Come back tomorrow for more plays! 🌅',
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 16,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 32),
+                                // Back button
+                                ElevatedButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.purple,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 48,
+                                      vertical: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'BACK TO MENU',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
-              ),
-
-              // Game Area - FIXED: Use Stack properly
-              Expanded(
-                child: Stack(
-                  children: [
-                    // Falling gems - rendered first so they can be tapped
-                    ...gems.map((gem) => GemWidget(
-                      key: ValueKey(gem.id),
-                      gem: gem,
-                      screenHeight: MediaQuery.of(context).size.height,
-                      onTap: () => collectGem(gem.id, gem.points),
-                    )),
-
-                    // Start/Instructions overlay - on top
-                    if (!isGameActive)
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              '💎 GEM GRAB 💎',
-                              style: TextStyle(
-                                fontSize: 36,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            const Text(
-                              'Tap the falling gems\nto collect them!',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.white70,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                '⚡ Watch out!\nGems fall at different speeds!',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.orange,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 40),
-                            ElevatedButton(
-                              onPressed: playsRemaining > 0 ? startGame : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: playsRemaining > 0
-                                    ? Colors.pink
-                                    : Colors.grey,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 48,
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                              ),
-                              child: Text(
-                                playsRemaining > 0
-                                    ? 'START GAME'
-                                    : 'NO PLAYS LEFT',
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                            if (playsRemaining <= 0)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 16),
-                                child: Text(
-                                  'Come back tomorrow! 🌅',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
+// FallingGem and GemWidget classes remain the same
 class FallingGem {
   final String id;
   final double left;
   final int points;
-  final double fallDuration; // in seconds
+  final double fallDuration;
   final DateTime spawnTime;
 
   FallingGem({
@@ -608,8 +773,7 @@ class GemWidget extends StatefulWidget {
   State<GemWidget> createState() => _GemWidgetState();
 }
 
-class _GemWidgetState extends State<GemWidget>
-    with TickerProviderStateMixin {
+class _GemWidgetState extends State<GemWidget> with TickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fallAnimation;
   late AnimationController _tapController;
@@ -622,7 +786,6 @@ class _GemWidgetState extends State<GemWidget>
   void initState() {
     super.initState();
 
-    // Falling animation
     _controller = AnimationController(
       duration: Duration(milliseconds: (widget.gem.fallDuration * 1000).toInt()),
       vsync: this,
@@ -634,18 +797,15 @@ class _GemWidgetState extends State<GemWidget>
 
     _controller.forward();
 
-    // Tap animation (POP effect)
     _tapController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
 
-    // Scale: 1.0 -> 1.3 (grows) -> 0.0 (disappears)
     _tapScale = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(parent: _tapController, curve: Curves.easeOut),
     );
 
-    // Opacity: 1.0 -> 0.0 (fades out)
     _tapOpacity = Tween<double>(begin: 1.0, end: 0.0).animate(
       CurvedAnimation(parent: _tapController, curve: Curves.easeOut),
     );
@@ -700,7 +860,7 @@ class _GemWidgetState extends State<GemWidget>
               child: FadeTransition(
                 opacity: _tapOpacity,
                 child: Transform.scale(
-                  scale: _tapped ? 1.15 : 1.0, // Initial grow
+                  scale: _tapped ? 1.15 : 1.0,
                   child: Container(
                     width: 60,
                     height: 60,
