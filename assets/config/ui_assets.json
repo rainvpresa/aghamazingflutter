@@ -14,5 +14,7 @@
   "rank_1_badge": "assets/images/pngs/rank_1_gold.png",
   "rank_2_badge": "assets/images/pngs/rank_2_silver.png",
   "rank_3_badge": "assets/images/pngs/rank_3_bronze.png",
+  "rank_4_badge": "assets/images/pngs/rank_4_badge.png",
+  "rank_5_badge": "assets/images/pngs/rank_5_badge.png",
   "leaderboard_item_bg": "assets/images/pngs/leaderboard_item_bg.png"
 }

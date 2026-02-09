@@ -9,6 +9,7 @@ import 'screens/register_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/mainmenu_screen.dart';
 import 'screens/game1/main_trivia_screen.dart';
+import 'screens/gemgrab/gem_grab_game_screen.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -45,6 +46,7 @@ class MyApp extends StatelessWidget {
         '/mainmenu': (_) => const MainMenuScreen(),
         '/profile': (_) => const ProfileScreen(),
         '/trivia': (_) => const MainTriviaScreen(),
+        '/gemgrab': (_) => const GemGrabGameScreen(),  // ADD THIS LINE
       },
     );
   }
