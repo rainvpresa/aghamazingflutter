@@ -317,6 +317,9 @@ class AuthService {
         'displayName': displayName,
         'coins': 0,
         'energy': 100,
+        'totalScore': 0,      // Initialize for leaderboard query
+        'gamesPlayed': 0,     // Initialize for stats
+        'gamesWon': 0,        // Initialize for stats
         'createdAt': FieldValue.serverTimestamp(),
         'lastLogin': FieldValue.serverTimestamp(),
       });

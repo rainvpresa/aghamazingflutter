@@ -8,7 +8,7 @@ import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/mainmenu_screen.dart';
-import 'screens/game1/main_trivia_screen.dart';
+import 'screens/trivia_game1/main_trivia_screen.dart';
 import 'screens/gemgrab/gem_grab_game_screen.dart';
 
 void main() async {

@@ -31,6 +31,35 @@ class UserProfileService {
     }
   }
 
+  /// Ensure profile has all required fields for leaderboard
+  Future<void> ensureProfileInitialized() async {
+    try {
+      String? uid = currentUserId;
+      if (uid == null) return;
+
+      DocumentReference userRef = _firestore.collection('users').doc(uid);
+      DocumentSnapshot doc = await userRef.get();
+
+      if (doc.exists) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        Map<String, dynamic> updates = {};
+
+        // If these fields are missing, the user won't show up in orderBy queries
+        if (!data.containsKey('totalScore')) updates['totalScore'] = 0;
+        if (!data.containsKey('coins')) updates['coins'] = 0;
+        if (!data.containsKey('gamesPlayed')) updates['gamesPlayed'] = 0;
+        if (!data.containsKey('gamesWon')) updates['gamesWon'] = 0;
+
+        if (updates.isNotEmpty) {
+          await userRef.update(updates);
+          debugPrint('✅ Initialized missing profile fields for $uid');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error ensuring profile init: $e');
+    }
+  }
+
   /// Stream user profile (real-time updates)
   Stream<DocumentSnapshot> streamUserProfile({String? userId}) {
     String uid = userId ?? currentUserId!;
@@ -381,6 +410,7 @@ class SessionService extends ChangeNotifier {
   SessionService._();
 
   final UserProfileService _profileService = UserProfileService();
+  bool _initialized = false;
 
   // Properties
   int _bubblePower = 0;
@@ -396,8 +426,14 @@ class SessionService extends ChangeNotifier {
 
   // Initialize - called from MainMenuScreen
   void init() {
+    if (_initialized) return;
+    _initialized = true;
+
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
+
+    // Self-heal: Ensure this user has the leaderboard fields
+    _profileService.ensureProfileInitialized();
 
     // Listen to Firebase coins (bubble power) and gems
     _subscription = _profileService.streamUserProfile().listen((snapshot) {
@@ -424,6 +460,7 @@ class SessionService extends ChangeNotifier {
   void dispose() {
     _subscription?.cancel();
     _energyTimer?.cancel();
+    _initialized = false;
     super.dispose();
   }
 }
