@@ -785,9 +785,17 @@ class CellPosition {
   int get hashCode => row.hashCode ^ col.hashCode;
 }
 
+// Game state enum - ADD THIS
+enum GameState {
+  menu,
+  playing,
+  gameOver,
+}
+
 // Extension to UserProfileService
 extension NumberMatchScore on UserProfileService {
   Future<void> updateNumberMatchScore(int score) async {
     debugPrint('Number Match Score: $score');
   }
 }
+

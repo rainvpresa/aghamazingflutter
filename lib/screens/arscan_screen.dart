@@ -3,7 +3,9 @@ import 'package:camera/camera.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
+import 'dart:math';
 import 'trivia_game1/main_trivia_screen.dart';
+import 'number match/number_match_game_screen.dart';
 
 class ARScanScreen extends StatefulWidget {
   const ARScanScreen({super.key});
@@ -18,6 +20,18 @@ class _ARScanScreenState extends State<ARScanScreen> with SingleTickerProviderSt
   bool _isBusy = false;
   bool _isCameraInitialized = false;
   late AnimationController _scanAnimationController;
+
+  // List of available games
+  final List<GameRoute> _games = [
+    GameRoute(
+      name: 'Trivia Challenge',
+      route: (_) => const MainTriviaScreen(),
+    ),
+    GameRoute(
+      name: 'Number Match',
+      route: (_) => const NumberMatchGameScreen(),
+    ),
+  ];
 
   @override
   void initState() {
@@ -60,7 +74,6 @@ class _ARScanScreenState extends State<ARScanScreen> with SingleTickerProviderSt
       if (inputImage == null) return;
 
       final recognizedText = await _textRecognizer.processImage(inputImage);
-
       final keywords = ["LIMITLESS", "BILLIARD", "BOWLING", "KTV", "BARCA"];
 
       bool found = false;
@@ -74,7 +87,7 @@ class _ARScanScreenState extends State<ARScanScreen> with SingleTickerProviderSt
 
       if (found && mounted) {
         await _cameraController?.stopImageStream();
-        _navigateToTrivia();
+        _navigateToRandomGame();
       }
     } catch (e) {
       debugPrint('Scan error: $e');
@@ -83,10 +96,34 @@ class _ARScanScreenState extends State<ARScanScreen> with SingleTickerProviderSt
     }
   }
 
-  void _navigateToTrivia() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainTriviaScreen()),
+  void _navigateToRandomGame() {
+    final random = Random();
+    final selectedGame = _games[random.nextInt(_games.length)];
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _GameSelectionDialog(
+        gameName: selectedGame.name,
+        onStart: () {
+          Navigator.of(context).pop();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: selectedGame.route),
+          );
+        },
+        onRescan: () {
+          Navigator.of(context).pop();
+          _restartScanning();
+        },
+      ),
     );
+  }
+
+  void _restartScanning() {
+    setState(() {
+      _isBusy = false;
+    });
+    _cameraController?.startImageStream(_processCameraImage);
   }
 
   InputImage? _inputImageFromCameraImage(CameraImage image) {
@@ -120,161 +157,257 @@ class _ARScanScreenState extends State<ARScanScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     if (!_isCameraInitialized || _cameraController == null) {
-      return const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator(color: Colors.cyan)));
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
     }
 
+    final screenW = MediaQuery.of(context).size.width;
     final screenH = MediaQuery.of(context).size.height;
-    const scanW = 280.0;
-    const scanH = 280.0;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Camera Preview
-          CameraPreview(_cameraController!),
+          // Camera Preview - Full Screen
+          Positioned.fill(
+            child: CameraPreview(_cameraController!),
+          ),
 
-          // Simplified HUD with corner brackets only
+          // Scan Frame - Centered
           Center(
-            child: SizedBox(
-              width: scanW,
-              height: scanH,
-              child: Stack(
-                children: [
-                  _buildCorner(top: 0, left: 0, angle: 0),
-                  _buildCorner(top: 0, right: 0, angle: 1.5708),
-                  _buildCorner(bottom: 0, left: 0, angle: -1.5708),
-                  _buildCorner(bottom: 0, right: 0, angle: 3.14159),
-
-                  // Animated Scanning Line
-                  AnimatedBuilder(
-                    animation: _scanAnimationController,
-                    builder: (context, child) {
-                      return Positioned(
-                        top: _scanAnimationController.value * scanH,
-                        left: 10,
-                        right: 10,
-                        child: Container(
-                          height: 2,
-                          decoration: BoxDecoration(
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.cyan.withOpacity(0.8),
-                                blurRadius: 10,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                            color: Colors.cyan,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
+            child: Container(
+              width: screenW * 0.75,
+              height: screenH * 0.5,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Colors.white,
+                  width: 3,
+                ),
+                borderRadius: BorderRadius.circular(20),
               ),
             ),
           ),
 
-          // Cool Unique "Scan a marker" text in the bottom
+          // Bottom Card - "Scanning"
           Positioned(
-            bottom: screenH * 0.12,
+            bottom: 40,
             left: 0,
             right: 0,
             child: Center(
-              child: AnimatedBuilder(
-                animation: _scanAnimationController,
-                builder: (context, child) {
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Opacity(
-                            opacity: _scanAnimationController.value,
-                            child: const Icon(Icons.arrow_right, color: Colors.cyanAccent, size: 32),
-                          ),
-                          const SizedBox(width: 10),
-                          ShaderMask(
-                            shaderCallback: (bounds) => LinearGradient(
-                              colors: const [Colors.cyan, Colors.white, Colors.cyan],
-                              stops: [0.0, _scanAnimationController.value, 1.0],
-                            ).createShader(bounds),
-                            child: const Text(
-                              "SCAN A MARKER",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'LilitaOne',
-                                letterSpacing: 6,
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black54,
-                                    offset: Offset(2, 2),
-                                    blurRadius: 4,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Opacity(
-                            opacity: _scanAnimationController.value,
-                            child: const Icon(Icons.arrow_left, color: Colors.cyanAccent, size: 32),
-                          ),
-                        ],
+              child: Container(
+                width: screenW * 0.5, // Fixed width instead of left/right constraints
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // App Icon
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E3A8A),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(height: 5),
-                      Container(
-                        height: 2,
-                        width: 200 * _scanAnimationController.value,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.transparent, Colors.cyanAccent, Colors.transparent],
+                      child: const Icon(
+                        Icons.qr_code_scanner,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'DOST-STII',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ),
-                    ],
-                  );
-                },
+                        Text(
+                          'Scan',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
 
-          // Clean Back Button
+          // Back Button - Top Left
           Positioned(
-            top: 50,
-            left: 20,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 28),
-              onPressed: () => Navigator.pop(context),
+            top: 40,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: 70,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: Image.asset(
+                  'assets/images/pngs/btn_back.png',
+                  width:70,
+                  height: 50,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => const Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildCorner({double? top, double? left, double? right, double? bottom, required double angle}) {
-    return Positioned(
-      top: top,
-      left: left,
-      right: right,
-      bottom: bottom,
-      child: Transform.rotate(
-        angle: angle,
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: const BoxDecoration(
-            border: Border(
-              top: BorderSide(color: Colors.cyan, width: 4),
-              left: BorderSide(color: Colors.cyan, width: 4),
-            ),
+// Game Selection Dialog
+class _GameSelectionDialog extends StatelessWidget {
+  final String gameName;
+  final VoidCallback onStart;
+  final VoidCallback onRescan;
+
+  const _GameSelectionDialog({
+    required this.gameName,
+    required this.onStart,
+    required this.onRescan,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(30),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF2a2a3e), Color(0xFF1a1a2e)],
           ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.cyanAccent, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.cyan.withOpacity(0.5),
+              blurRadius: 20,
+              spreadRadius: 5,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.stars, color: Color(0xFFF2C94C), size: 60),
+            const SizedBox(height: 20),
+            const Text(
+              'GAME UNLOCKED!',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.cyanAccent,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              gameName,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 30),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildButton(
+                  'PLAY',
+                  const Color(0xFF4CD964),
+                  Icons.play_arrow,
+                  onStart,
+                ),
+                _buildButton(
+                  'RESCAN',
+                  const Color(0xFFE74C3C),
+                  Icons.refresh,
+                  onRescan,
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
+
+  Widget _buildButton(String text, Color color, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.5),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              text,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Game Route Model
+class GameRoute {
+  final String name;
+  final Widget Function(BuildContext) route;
+
+  GameRoute({required this.name, required this.route});
 }
