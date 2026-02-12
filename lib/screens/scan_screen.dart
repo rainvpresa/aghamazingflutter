@@ -4,8 +4,10 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import 'dart:math';
+import '../../services/energy_manager.dart';
 import 'trivia_game1/main_trivia_screen.dart';
 import 'number match/number_match_game_screen.dart';
+import 'color game/color_game.dart';
 
 class ARScanScreen extends StatefulWidget {
   const ARScanScreen({super.key});
@@ -30,6 +32,10 @@ class _ARScanScreenState extends State<ARScanScreen> with SingleTickerProviderSt
     GameRoute(
       name: 'Number Match',
       route: (_) => const NumberMatchGameScreen(),
+    ),
+    GameRoute(
+      name: 'Color Puzzle',
+      route: (_) => const ColorPuzzleGame(),
     ),
   ];
 
@@ -336,8 +342,8 @@ class _ARScanScreenState extends State<ARScanScreen> with SingleTickerProviderSt
   }
 }
 
-// Game Selection Dialog with DOST-STII Branding
-class _GameSelectionDialog extends StatelessWidget {
+// Game Selection Dialog with Energy Check
+class _GameSelectionDialog extends StatefulWidget {
   final String gameName;
   final VoidCallback onStart;
   final VoidCallback onRescan;
@@ -348,11 +354,85 @@ class _GameSelectionDialog extends StatelessWidget {
     required this.onRescan,
   });
 
+  @override
+  State<_GameSelectionDialog> createState() => _GameSelectionDialogState();
+}
+
+class _GameSelectionDialogState extends State<_GameSelectionDialog> {
   // DOST-STII Brand Colors
   static const Color yaleBlue = Color(0xFF004A98);
   static const Color redPigment = Color(0xFFED262A);
   static const Color white = Color(0xFFFFFFFF);
   static const Color eerieBlack = Color(0xFF1E1E1E);
+
+  bool _isCheckingEnergy = false;
+
+  Future<void> _handlePlayButtonPressed() async {
+    setState(() => _isCheckingEnergy = true);
+
+    try {
+      // Check if user has enough energy (10 energy required for Color Puzzle)
+      bool hasEnergy = await EnergyManager.instance.hasEnoughEnergy(required: 10);
+
+      if (!hasEnergy) {
+        // Show "Not Enough Energy" dialog
+        if (!mounted) return;
+        _showNotEnoughEnergyDialog();
+        setState(() => _isCheckingEnergy = false);
+        return;
+      }
+
+      // Deduct 10 energy
+      bool success = await EnergyManager.instance.useEnergy(amount: 10);
+
+      if (success) {
+        // Energy deducted successfully, start the game
+        widget.onStart();
+      } else {
+        // Failed to deduct energy
+        if (!mounted) return;
+        _showErrorDialog();
+        setState(() => _isCheckingEnergy = false);
+      }
+    } catch (e) {
+      debugPrint('Error checking/using energy: $e');
+      if (!mounted) return;
+      _showErrorDialog();
+      setState(() => _isCheckingEnergy = false);
+    }
+  }
+
+  void _showNotEnoughEnergyDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Not Enough Energy'),
+        content: const Text('You need 10 energy to play this game. Please wait for your energy to regenerate or come back later!'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: const Text('Something went wrong. Please try again.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -425,7 +505,7 @@ class _GameSelectionDialog extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Text(
-                    gameName,
+                    widget.gameName,
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
@@ -434,6 +514,32 @@ class _GameSelectionDialog extends StatelessWidget {
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Energy Cost Display
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.shade300, width: 2),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.bolt, color: Colors.orange.shade700, size: 20),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Costs 10 Energy',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange.shade900,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -446,8 +552,9 @@ class _GameSelectionDialog extends StatelessWidget {
                       'PLAY',
                       yaleBlue,
                       Icons.play_arrow,
-                      onStart,
+                      _isCheckingEnergy ? null : _handlePlayButtonPressed,
                       dialogWidth,
+                      isLoading: _isCheckingEnergy,
                     ),
                     const SizedBox(height: 12),
                     // RESCAN Button - Red Pigment
@@ -455,7 +562,7 @@ class _GameSelectionDialog extends StatelessWidget {
                       'RESCAN',
                       redPigment,
                       Icons.refresh,
-                      onRescan,
+                      _isCheckingEnergy ? null : widget.onRescan,
                       dialogWidth,
                     ),
                   ],
@@ -472,9 +579,10 @@ class _GameSelectionDialog extends StatelessWidget {
       String text,
       Color color,
       IconData icon,
-      VoidCallback onTap,
-      double dialogWidth,
-      ) {
+      VoidCallback? onTap,
+      double dialogWidth, {
+        bool isLoading = false,
+      }) {
     return SizedBox(
       width: double.infinity,
       child: Material(
@@ -485,7 +593,7 @@ class _GameSelectionDialog extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
-              color: color,
+              color: onTap == null ? color.withOpacity(0.5) : color,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -499,7 +607,17 @@ class _GameSelectionDialog extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, color: white, size: 22),
+                if (isLoading)
+                  const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      color: white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                else
+                  Icon(icon, color: white, size: 22),
                 const SizedBox(width: 10),
                 Text(
                   text,
