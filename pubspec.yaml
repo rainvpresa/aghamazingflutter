@@ -23,7 +23,6 @@ dependencies:
   google_mlkit_text_recognition: ^0.13.0
   permission_handler: ^11.3.1
   intl: ^0.18.1
-  ar_flutter_plugin_2: ^0.0.3
   confetti: ^0.7.0
 
 dev_dependencies:

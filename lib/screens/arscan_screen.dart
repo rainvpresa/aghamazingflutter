@@ -165,123 +165,169 @@ class _ARScanScreenState extends State<ARScanScreen> with SingleTickerProviderSt
       );
     }
 
-    final screenW = MediaQuery.of(context).size.width;
-    final screenH = MediaQuery.of(context).size.height;
-
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // Camera Preview - Full Screen
-          Positioned.fill(
-            child: CameraPreview(_cameraController!),
-          ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // Get available screen dimensions
+          final screenW = constraints.maxWidth;
+          final screenH = constraints.maxHeight;
 
-          // Scan Frame - Centered
-          Center(
-            child: Container(
-              width: screenW * 0.75,
-              height: screenH * 0.5,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.white,
-                  width: 3,
-                ),
-                borderRadius: BorderRadius.circular(20),
+          // Responsive sizing
+          final scanFrameWidth = screenW * 0.75;
+          final scanFrameHeight = screenH * 0.5;
+          final bottomCardWidth = screenW * 0.5;
+
+          return Stack(
+            children: [
+              // Camera Preview - Full Screen
+              Positioned.fill(
+                child: CameraPreview(_cameraController!),
               ),
-            ),
-          ),
 
-          // Bottom Card - "Scanning"
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                width: screenW * 0.5, // Fixed width instead of left/right constraints
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+              // Main Content Column with Flexbox
+              Positioned.fill(
+                child: Column(
                   children: [
-                    // App Icon
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E3A8A),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.qr_code_scanner,
-                        color: Colors.white,
-                        size: 24,
+                    // Top section with back button
+                    Flexible(
+                      flex: 1,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            top: MediaQuery.of(context).padding.top + 8,
+                            left: 8,
+                          ),
+                          child: _buildBackButton(),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'DOST-STII',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
+
+                    // Middle section with scan frame
+                    Flexible(
+                      flex: 5,
+                      child: Center(
+                        child: Container(
+                          width: scanFrameWidth,
+                          height: scanFrameHeight,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 3,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
                           ),
                         ),
-                        Text(
-                          'Scan',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    // Bottom section with scan card
+                    Flexible(
+                      flex: 2,
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            bottom: MediaQuery.of(context).padding.bottom + 40,
                           ),
+                          child: _buildScanCard(bottomCardWidth),
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
               ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildBackButton() {
+    return GestureDetector(
+      onTap: () => Navigator.pop(context),
+      child: Container(
+        width: 70,
+        height: 50,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(3),
+        ),
+        child: Image.asset(
+          'assets/images/pngs/btn_back.png',
+          width: 70,
+          height: 50,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+            size: 28,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScanCard(double cardWidth) {
+    return Container(
+      width: cardWidth.clamp(150.0, 400.0), // Ensure valid width range
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 10,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // App Icon - DOST-STII Blue
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFF004A98), // Yale Blue
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.qr_code_scanner,
+              color: Colors.white,
+              size: 24,
             ),
           ),
-
-          // Back Button - Top Left
-          Positioned(
-            top: 40,
-            child: GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                width: 70,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: Image.asset(
-                  'assets/images/pngs/btn_back.png',
-                  width:70,
-                  height: 50,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                    size: 28,
+          const SizedBox(width: 12),
+          // Text Content - Expanded to fill remaining space
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'DOST-STII',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
+                Text(
+                  'Scan',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],
@@ -290,7 +336,7 @@ class _ARScanScreenState extends State<ARScanScreen> with SingleTickerProviderSt
   }
 }
 
-// Game Selection Dialog
+// Game Selection Dialog with DOST-STII Branding
 class _GameSelectionDialog extends StatelessWidget {
   final String gameName;
   final VoidCallback onStart;
@@ -302,102 +348,171 @@ class _GameSelectionDialog extends StatelessWidget {
     required this.onRescan,
   });
 
+  // DOST-STII Brand Colors
+  static const Color yaleBlue = Color(0xFF004A98);
+  static const Color redPigment = Color(0xFFED262A);
+  static const Color white = Color(0xFFFFFFFF);
+  static const Color eerieBlack = Color(0xFF1E1E1E);
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(30),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2a2a3e), Color(0xFF1a1a2e)],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.cyanAccent, width: 3),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.cyan.withOpacity(0.5),
-              blurRadius: 20,
-              spreadRadius: 5,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.stars, color: Color(0xFFF2C94C), size: 60),
-            const SizedBox(height: 20),
-            const Text(
-              'GAME UNLOCKED!',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.cyanAccent,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              gameName,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 30),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildButton(
-                  'PLAY',
-                  const Color(0xFF4CD964),
-                  Icons.play_arrow,
-                  onStart,
-                ),
-                _buildButton(
-                  'RESCAN',
-                  const Color(0xFFE74C3C),
-                  Icons.refresh,
-                  onRescan,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final screenWidth = MediaQuery.of(context).size.width;
+          final dialogWidth = (screenWidth * 0.85).clamp(280.0, 400.0);
+
+          return Container(
+            width: dialogWidth,
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: yaleBlue, width: 4),
+              boxShadow: [
+                BoxShadow(
+                  color: yaleBlue.withOpacity(0.3),
+                  blurRadius: 20,
+                  spreadRadius: 5,
                 ),
               ],
             ),
-          ],
-        ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon with DOST-STII Blue background
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: const BoxDecoration(
+                    color: yaleBlue,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.stars,
+                    color: white,
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Title - DOST-STII Blue
+                const Text(
+                  'GAME',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: yaleBlue,
+                    letterSpacing: 2,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const Text(
+                  'UNLOCKED!',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: yaleBlue,
+                    letterSpacing: 2,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+
+                // Game Name - Black text
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Text(
+                    gameName,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: eerieBlack,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Buttons Column for better spacing and no overflow
+                Column(
+                  children: [
+                    // PLAY Button - DOST-STII Blue
+                    _buildButton(
+                      'PLAY',
+                      yaleBlue,
+                      Icons.play_arrow,
+                      onStart,
+                      dialogWidth,
+                    ),
+                    const SizedBox(height: 12),
+                    // RESCAN Button - Red Pigment
+                    _buildButton(
+                      'RESCAN',
+                      redPigment,
+                      Icons.refresh,
+                      onRescan,
+                      dialogWidth,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildButton(String text, Color color, IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: color,
+  Widget _buildButton(
+      String text,
+      Color color,
+      IconData icon,
+      VoidCallback onTap,
+      double dialogWidth,
+      ) {
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.5),
-              blurRadius: 10,
-              spreadRadius: 2,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              text,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: white, size: 22),
+                const SizedBox(width: 10),
+                Text(
+                  text,
+                  style: const TextStyle(
+                    color: white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -193,392 +193,405 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
           ),
 
           SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Column(
-                  children: [
-                    // Top stats row - FIXED HEIGHT
-                    SizedBox(
-                      height: constraints.maxHeight * 0.05, // 5% of screen height
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: screenW * 0.02,
-                          vertical: constraints.maxHeight * 0.001,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            // Bubble Power
-                            Consumer<SessionService>(
-                              builder: (context, s, _) => IconStatButton(
-                                assetPath: asset('bubble_power'),
-                                width: topIconW,
-                                height: topIconH,
-                                value: s.bubblePower.toString(),
-                                onTap: () => showStyledSnackBar(
-                                  context,
-                                  title: 'Bubble Power',
-                                  message: 'You have ${s.bubblePower} coins',
-                                  backgroundColor: const Color(0xFFF2C94C),
-                                  icon: Icons.star,
-                                  iconColor: Colors.white,
-                                ),
-                                textStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: screenW * 0.025),
-
-                            // Gems
-                            Consumer<SessionService>(
-                              builder: (context, s, _) => IconStatButton(
-                                assetPath: asset('gems'),
-                                width: topIconW,
-                                height: topIconH,
-                                value: s.gems.toString(),
-                                onTap: () => showStyledSnackBar(
-                                  context,
-                                  title: 'Gems',
-                                  message: 'You have ${s.gems} gems',
-                                  backgroundColor: const Color(0xFF6C5CE7),
-                                  icon: Icons.diamond,
-                                  iconColor: Colors.white,
-                                ),
-                                textStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: screenW * 0.025),
-
-                            // Energy with Timer
-                            Consumer<SessionService>(
-                              builder: (context, s, _) => _EnergyDisplay(
-                                assetPath: asset('energy'),
-                                width: topIconW,
-                                height: topIconH,
-                                currentEnergy: s.energy,
-                                maxEnergy: _maxEnergy,
-                                timeLeft: _timeUntilNextRegen,
-                                onTap: () => showStyledSnackBar(
-                                  context,
-                                  title: 'Energy',
-                                  message: s.energy < _maxEnergy
-                                      ? 'Next regen in: ${_formatTime(_timeUntilNextRegen)}'
-                                      : 'Energy is full!',
-                                  backgroundColor: const Color(0xFFE84393),
-                                  icon: Icons.bolt,
-                                  iconColor: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+            child: Column(
+              children: [
+                // ═══════════════════════════════════════════════════════════
+                // TOP STATS ROW - Fixed height (~7% of screen)
+                // ═══════════════════════════════════════════════════════════
+                SizedBox(
+                  height: screenH * 0.07,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenW * 0.02,
+                      vertical: screenH * 0.005,
                     ),
-
-                    // Mascot section - FLEXIBLE
-                    Expanded(
-                      flex: 48, // 48% of available space
-                      child: LayoutBuilder(
-                        builder: (context, mascotConstraints) {
-                          return Stack(
-                            children: [
-                              // Centered mascot
-                              Center(
-                                child: SizedBox(
-                                  width: screenW * 0.94,
-                                  height: mascotConstraints.maxHeight * 0.95,
-                                  child: _MascotAnimation(
-                                    asset: mascotAsset,
-                                    width: screenW * 0.94,
-                                    height: mascotConstraints.maxHeight * 0.95,
-                                    verticalNudge: -0.08,
-                                    scale: 1.2,
-                                  ),
-                                ),
-                              ),
-
-                              // AR Scan button (left side)
-                              Positioned(
-                                bottom: mascotConstraints.maxHeight * 0.24,
-                                left: screenW * 0.04,
-                                child: ImageAssetButton(
-                                  assetPath: asset('btn_arscan'),
-                                  width: scanW,
-                                  height: scanH,
-                                  fill: true,
-                                  onTap: () => Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (_) => const ARScanScreen()),
-                                  ),
-                                  fallbackWidget: const Icon(
-                                    Icons.qr_code_scanner,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-
-                              // Profile & Chat buttons
-                              Positioned(
-                                right: screenW * 0.045,
-                                bottom: mascotConstraints.maxHeight * 0.16,
-                                child: Row(
-                                  children: [
-                                    ImageAssetButton(
-                                      assetPath: asset('btn_profile'),
-                                      width: profileW,
-                                      height: profileH,
-                                      fill: true,
-                                      onTap: () => Navigator.of(context).push(
-                                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                                      ),
-                                      fallbackWidget: const Icon(
-                                        Icons.person,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    SizedBox(width: screenW * 0.02),
-                                    ImageAssetButton(
-                                      assetPath: asset('btn_chatbot'),
-                                      width: chatW,
-                                      height: chatH,
-                                      fill: true,
-                                      onTap: () => Navigator.of(context).push(
-                                        MaterialPageRoute(builder: (_) => const ChatbotScreen()),
-                                      ),
-                                      fallbackWidget: const Icon(
-                                        Icons.chat_bubble,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              // SELECT button
-                              Positioned(
-                                right: screenW * 0.04,
-                                bottom: mascotConstraints.maxHeight * 0.03,
-                                child: ImageAssetButton(
-                                  assetPath: asset('btn_select'),
-                                  width: selectW,
-                                  height: selectH,
-                                  fill: true,
-                                  onTap: () => showStyledSnackBar(
-                                    context,
-                                    title: 'Mascot Selected',
-                                    message: 'Smarty is now your active mascot!',
-                                    backgroundColor: const Color(0xFF00B894),
-                                    icon: Icons.check_circle,
-                                    iconColor: Colors.white,
-                                  ),
-                                  fallbackWidget: ElevatedButton(
-                                    onPressed: () => showStyledSnackBar(
-                                      context,
-                                      title: 'Mascot Selected',
-                                      message: 'Smarty is now your active mascot!',
-                                      backgroundColor: const Color(0xFF00B894),
-                                      icon: Icons.check_circle,
-                                      iconColor: Colors.white,
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFf2c94c),
-                                    ),
-                                    child: const Text('SELECT'),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-
-                    // Leaderboards section - FLEXIBLE
-                    Expanded(
-                      flex: 30, // 30% of available space
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: screenW * 0.015,
-                          vertical: constraints.maxHeight * 0.0025, // use constraints instead of screenH
-                        ),
-                        child: Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.all(screenW * 0.015),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(6),
-                            image: asset('leaderboard_bg').isNotEmpty
-                                ? DecorationImage(
-                              image: AssetImage(asset('leaderboard_bg')),
-                              fit: BoxFit.cover,
-                            )
-                                : null,
-                            color: asset('leaderboard_bg').isEmpty
-                                ? Colors.black.withValues(alpha: 0.4)
-                                : null,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // Bubble Power
+                        Consumer<SessionService>(
+                          builder: (context, s, _) => IconStatButton(
+                            assetPath: asset('bubble_power'),
+                            width: topIconW,
+                            height: topIconH,
+                            value: s.bubblePower.toString(),
+                            onTap: () => showStyledSnackBar(
+                              context,
+                              title: 'Bubble Power',
+                              message: 'You have ${s.bubblePower} coins',
+                              backgroundColor: const Color(0xFFF2C94C),
+                              icon: Icons.star,
+                              iconColor: Colors.white,
+                            ),
+                            textStyle: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Header row - flexible height
-                              Padding(
-                                padding: EdgeInsets.symmetric(vertical: screenW * 0.01),
-                                child: Row(
-                                  children: [
-                                    if (asset('leaderboard_emblem').isNotEmpty)
-                                      Image.asset(
-                                        asset('leaderboard_emblem'),
-                                        width: screenW * 0.11,
-                                        height: screenW * 0.11,
-                                      )
-                                    else
-                                      Container(
-                                        width: screenW * 0.11,
-                                        height: screenW * 0.11,
-                                        decoration: BoxDecoration(
-                                          color: Colors.amber,
-                                          shape: BoxShape.circle,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.amber.withOpacity(0.5),
-                                              blurRadius: 8,
-                                              spreadRadius: 2,
-                                            ),
-                                          ],
-                                        ),
-                                        child: Icon(
-                                          Icons.emoji_events,
-                                          color: Colors.white,
-                                          size: screenW * 0.10,
-                                        ),
-                                      ),
-                                    const Spacer(),
-                                    // Refresh button - simple icon button
-                                    Container(
-                                      width: screenW * 0.10, // ← EDIT THIS to change TRY button width
-                                      height: screenW * 0.10, // ← EDIT THIS to change TRY button height
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF6C5CE7),
-                                        borderRadius: BorderRadius.circular(12),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFF6C5CE7).withOpacity(0.4),
-                                            blurRadius: 8,
-                                            spreadRadius: 2,
-                                          ),
-                                        ],
-                                      ),
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          onTap: _loadLeaderboard,
-                                          borderRadius: BorderRadius.circular(12),
-                                          child: Icon(
-                                            Icons.refresh,
-                                            color: Colors.white,
-                                            size: screenW * 0.065, // ← EDIT THIS to change icon size
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                        ),
+                        SizedBox(width: screenW * 0.025),
 
-                              // Scrollable leaderboard items
-                              Expanded(
-                                child: _isLoadingLeaderboard
-                                    ? const Center(
-                                  child: CircularProgressIndicator(
-                                    color: Colors.amber,
-                                  ),
-                                )
-                                    : _leaderboardData.isEmpty
-                                    ? Center(
-                                  child: Text(
-                                    'No players yet!\nBe the first to play!',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: screenW * 0.035,
-                                    ),
-                                  ),
-                                )
-                                    : ListView.builder(
-                                  padding: EdgeInsets.zero,
-                                  itemCount: _leaderboardData.length,
-                                  itemBuilder: (context, index) {
-                                    final player = _leaderboardData[index];
-                                    return _LeaderboardItem(
-                                      rank: index + 1,
-                                      displayName: player['displayName'] ?? 'Anonymous',
-                                      score: player['totalScore'] ?? 0,
-                                      itemBgAsset: asset('leaderboard_item_bg'),
-                                      rankBadgeAsset: asset('rank_${index + 1}_badge'),
-                                      rankLabelAsset: asset('rank_${index + 1}_label'),
-                                      screenWidth: screenW,
-                                    );
-                                  },
-                                ),
+                        // Gems
+                        Consumer<SessionService>(
+                          builder: (context, s, _) => IconStatButton(
+                            assetPath: asset('gems'),
+                            width: topIconW,
+                            height: topIconH,
+                            value: s.gems.toString(),
+                            onTap: () => showStyledSnackBar(
+                              context,
+                              title: 'Gems',
+                              message: 'You have ${s.gems} gems',
+                              backgroundColor: const Color(0xFF6C5CE7),
+                              icon: Icons.diamond,
+                              iconColor: Colors.white,
+                            ),
+                            textStyle: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: screenW * 0.025),
+
+                        // Energy with Timer
+                        Consumer<SessionService>(
+                          builder: (context, s, _) => _EnergyDisplay(
+                            assetPath: asset('energy'),
+                            width: topIconW,
+                            height: topIconH,
+                            currentEnergy: s.energy,
+                            maxEnergy: _maxEnergy,
+                            timeLeft: _timeUntilNextRegen,
+                            onTap: () => showStyledSnackBar(
+                              context,
+                              title: 'Energy',
+                              message: s.energy < _maxEnergy
+                                  ? 'Next regen in: ${_formatTime(_timeUntilNextRegen)}'
+                                  : 'Energy is full!',
+                              backgroundColor: const Color(0xFFE84393),
+                              icon: Icons.bolt,
+                              iconColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ═══════════════════════════════════════════════════════════
+                // MASCOT SECTION - Flexible (~55% of remaining space)
+                // ═══════════════════════════════════════════════════════════
+                Expanded(
+                  flex: 55,
+                  child: Stack(
+                    children: [
+                      // Centered mascot
+                      Center(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return SizedBox(
+                              width: screenW * 0.94,
+                              height: constraints.maxHeight * 0.95,
+                              child: _MascotAnimation(
+                                asset: mascotAsset,
+                                width: screenW * 0.94,
+                                height: constraints.maxHeight * 0.95,
+                                verticalNudge: -0.08,
+                                scale: 1.2,
                               ),
-                            ],
+                            );
+                          },
+                        ),
+                      ),
+
+                      // AR Scan button (left side)
+                      Positioned(
+                        bottom: 0,
+                        left: screenW * 0.04,
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: screenH * 0.02),
+                          child: ImageAssetButton(
+                            assetPath: asset('btn_arscan'),
+                            width: scanW,
+                            height: scanH,
+                            fill: true,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const ARScanScreen()),
+                            ),
+                            fallbackWidget: const Icon(
+                              Icons.qr_code_scanner,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
-                    ),
 
-                    // Gem Grab button - FIXED HEIGHT
-                    SizedBox(
-                      height: constraints.maxHeight * 0.065, // 6.5% reduced from 7%
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: screenW * 0.015),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: screenW * 0.60,
-                            ),
-                            child: AspectRatio(
-                              aspectRatio: 983 / 278,
-                              child: asset('btn_gem_grab').isNotEmpty
-                                  ? ImageAssetButton(
-                                assetPath: asset('btn_gem_grab'),
-                                width: double.infinity,
-                                height: double.infinity,
+                      // Profile & Chat buttons
+                      Positioned(
+                        right: screenW * 0.045,
+                        bottom: 0,
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: screenH * 0.08),
+                          child: Row(
+                            children: [
+                              ImageAssetButton(
+                                assetPath: asset('btn_profile'),
+                                width: profileW,
+                                height: profileH,
                                 fill: true,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const GemGrabGameScreen(),
-                                  ),
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
                                 ),
-                                fallbackWidget: const SizedBox.shrink(),
-                              )
-                                  : ElevatedButton(
-                                onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const GemGrabGameScreen(),
-                                  ),
+                                fallbackWidget: const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
                                 ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.deepPurple,
-                                  minimumSize: const Size(double.infinity, 48),
-                                ),
-                                child: const Text('GEM GRAB'),
                               ),
+                              SizedBox(width: screenW * 0.02),
+                              ImageAssetButton(
+                                assetPath: asset('btn_chatbot'),
+                                width: chatW,
+                                height: chatH,
+                                fill: true,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+                                ),
+                                fallbackWidget: const Icon(
+                                  Icons.chat_bubble,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // SELECT button
+                      Positioned(
+                        right: screenW * 0.04,
+                        bottom: 0,
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: screenH * 0.01),
+                          child: ImageAssetButton(
+                            assetPath: asset('btn_select'),
+                            width: selectW,
+                            height: selectH,
+                            fill: true,
+                            onTap: () => showStyledSnackBar(
+                              context,
+                              title: 'Mascot Selected',
+                              message: 'Smarty is now your active mascot!',
+                              backgroundColor: const Color(0xFF00B894),
+                              icon: Icons.check_circle,
+                              iconColor: Colors.white,
+                            ),
+                            fallbackWidget: ElevatedButton(
+                              onPressed: () => showStyledSnackBar(
+                                context,
+                                title: 'Mascot Selected',
+                                message: 'Smarty is now your active mascot!',
+                                backgroundColor: const Color(0xFF00B894),
+                                icon: Icons.check_circle,
+                                iconColor: Colors.white,
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFF2C94C),
+                              ),
+                              child: const Text('SELECT'),
                             ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
+                  ),
+                ),
 
-                    SizedBox(height: constraints.maxHeight * 0.005), // reduced from 0.01
-                  ],
-                );
-              },
+                // ═══════════════════════════════════════════════════════════
+                // LEADERBOARDS SECTION - Flexible (~30% of remaining space)
+                // ═══════════════════════════════════════════════════════════
+                Expanded(
+                  flex: 30,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenW * 0.015,
+                      vertical: screenH * 0.005,
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(screenW * 0.015),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        image: asset('leaderboard_bg').isNotEmpty
+                            ? DecorationImage(
+                          image: AssetImage(asset('leaderboard_bg')),
+                          fit: BoxFit.cover,
+                        )
+                            : null,
+                        color: asset('leaderboard_bg').isEmpty
+                            ? Colors.black.withValues(alpha: 0.4)
+                            : null,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header row
+                          Padding(
+                            padding: EdgeInsets.symmetric(vertical: screenW * 0.01),
+                            child: Row(
+                              children: [
+                                if (asset('leaderboard_emblem').isNotEmpty)
+                                  Image.asset(
+                                    asset('leaderboard_emblem'),
+                                    width: screenW * 0.11,
+                                    height: screenW * 0.11,
+                                  )
+                                else
+                                  Container(
+                                    width: screenW * 0.11,
+                                    height: screenW * 0.11,
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.amber.withOpacity(0.5),
+                                          blurRadius: 8,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
+                                    ),
+                                    child: Icon(
+                                      Icons.emoji_events,
+                                      color: Colors.white,
+                                      size: screenW * 0.10,
+                                    ),
+                                  ),
+                                const Spacer(),
+                                // Refresh button
+                                Container(
+                                  width: screenW * 0.10,
+                                  height: screenW * 0.10,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF6C5CE7),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF6C5CE7).withOpacity(0.4),
+                                        blurRadius: 8,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: _loadLeaderboard,
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Icon(
+                                        Icons.refresh,
+                                        color: Colors.white,
+                                        size: screenW * 0.065,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Scrollable leaderboard items
+                          Expanded(
+                            child: _isLoadingLeaderboard
+                                ? const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.amber,
+                              ),
+                            )
+                                : _leaderboardData.isEmpty
+                                ? Center(
+                              child: Text(
+                                'No players yet!\nBe the first to play!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: screenW * 0.035,
+                                ),
+                              ),
+                            )
+                                : ListView.builder(
+                              padding: EdgeInsets.zero,
+                              itemCount: _leaderboardData.length,
+                              itemBuilder: (context, index) {
+                                final player = _leaderboardData[index];
+                                return _LeaderboardItem(
+                                  rank: index + 1,
+                                  displayName: player['displayName'] ?? 'Anonymous',
+                                  score: player['totalScore'] ?? 0,
+                                  itemBgAsset: asset('leaderboard_item_bg'),
+                                  rankBadgeAsset: asset('rank_${index + 1}_badge'),
+                                  rankLabelAsset: asset('rank_${index + 1}_label'),
+                                  screenWidth: screenW,
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // ═══════════════════════════════════════════════════════════
+                // GEM GRAB BUTTON - Flexible (~8% of remaining space)
+                // ═══════════════════════════════════════════════════════════
+                Expanded(
+                  flex: 8,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: screenW * 0.015),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: screenW * 0.60,
+                        ),
+                        child: AspectRatio(
+                          aspectRatio: 983 / 278,
+                          child: asset('btn_gem_grab').isNotEmpty
+                              ? ImageAssetButton(
+                            assetPath: asset('btn_gem_grab'),
+                            width: double.infinity,
+                            height: double.infinity,
+                            fill: true,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const GemGrabGameScreen(),
+                              ),
+                            ),
+                            fallbackWidget: const SizedBox.shrink(),
+                          )
+                              : ElevatedButton(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const GemGrabGameScreen(),
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurple,
+                              minimumSize: const Size(double.infinity, 48),
+                            ),
+                            child: const Text('GEM GRAB'),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: screenH * 0.01),
+              ],
             ),
           ),
         ],
@@ -643,7 +656,7 @@ class IconStatButton extends StatelessWidget {
               style: textStyle ?? TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: screenWidth * 0.032, // Responsive font size
+                fontSize: screenWidth * 0.032,
               ),
               textAlign: TextAlign.center,
             ),

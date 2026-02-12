@@ -21,8 +21,7 @@ android {
 
     defaultConfig {
         applicationId = "com.doststii.aghamazing1"
-        // Updated minSdk to 28 as required by ar_flutter_plugin_2
-        minSdk = 28
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

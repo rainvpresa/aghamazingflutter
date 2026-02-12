@@ -17,7 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailCtl = TextEditingController();
   final _passCtl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _remember = false;
   bool _obscure = true;
 
   bool _loginHovered = false;
@@ -35,16 +34,15 @@ class _LoginScreenState extends State<LoginScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       precacheImage(const AssetImage(_bg), context);
     });
-    _loadRememberedEmail();
+    _loadSavedEmail();
   }
 
-  // Simple: just load the saved email if "Remember me" was checked
-  Future<void> _loadRememberedEmail() async {
+  // Automatically load the last used email
+  Future<void> _loadSavedEmail() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedEmail = prefs.getString('SavedEmail') ?? '';
+    final savedEmail = prefs.getString('LastUsedEmail') ?? '';
     if (savedEmail.isNotEmpty) {
       _emailCtl.text = savedEmail;
-      setState(() => _remember = true);
     }
   }
 
@@ -90,13 +88,9 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.of(context).pop(); // Close loading dialog
 
       if (result['success'] == true) {
-        // Simple: Just save/remove email based on checkbox
+        // Always save the email for next time
         final prefs = await SharedPreferences.getInstance();
-        if (_remember) {
-          await prefs.setString('SavedEmail', email);
-        } else {
-          await prefs.remove('SavedEmail');
-        }
+        await prefs.setString('LastUsedEmail', email);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -243,26 +237,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                         const SizedBox(height: 12),
                                         Row(
                                           children: [
-                                            Row(
-                                              children: [
-                                                SizedBox(
-                                                  width: 24,
-                                                  height: 24,
-                                                  child: Checkbox(
-                                                    value: _remember,
-                                                    onChanged: (v) => setState(() =>
-                                                    _remember = v ?? false),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  'Remember me',
-                                                  style: TextStyle(
-                                                      color: _mutedTextColor,
-                                                      fontSize: 14),
-                                                ),
-                                              ],
-                                            ),
                                             const Spacer(),
                                             MouseRegion(
                                               cursor: SystemMouseCursors.click,
