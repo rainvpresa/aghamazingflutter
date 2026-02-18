@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/userprofile_service.dart';
 
 // ─────────────────────────────────────────────
 //  DOST-STII BRAND COLORS
@@ -11,6 +12,41 @@ const kEerieBlack = Color(0xFF1E1E1E);
 const kWhite = Color(0xFFFFFFFF);
 const kLightBlue = Color(0xFFE8F0F9);
 const kGrey = Color(0xFFF4F6FA);
+
+// ─────────────────────────────────────────────
+//  RESPONSIVE LAYOUT HELPER
+//  Usage: _Layout.of(context).sp(14)  → scaled font
+//         _Layout.of(context).r(16)   → scaled radius/padding
+// ─────────────────────────────────────────────
+class _Layout {
+  final double screenWidth;
+  final double screenHeight;
+
+  const _Layout({required this.screenWidth, required this.screenHeight});
+
+  factory _Layout.of(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    return _Layout(screenWidth: size.width, screenHeight: size.height);
+  }
+
+  /// Scales a value relative to a 360dp baseline width.
+  double r(double value) => value * (screenWidth / 360);
+
+  /// Scales font size with a gentler curve (±20% cap) so text never gets huge.
+  double sp(double value) {
+    final scale = (screenWidth / 360).clamp(0.8, 1.4);
+    return value * scale;
+  }
+
+  /// Grid columns: 3 for portrait, 5 for wide landscape.
+  int get gridColumns => screenWidth > screenHeight ? 5 : 3;
+
+  /// Horizontal message padding that widens on tablets/landscape.
+  double get hPad => r(16).clamp(12.0, 32.0);
+
+  /// Max width for bot/user bubbles so they don't stretch wall-to-wall on wide screens.
+  double get bubbleMaxWidth => screenWidth * 0.72;
+}
 
 // ─────────────────────────────────────────────
 //  DATA MODEL
@@ -43,12 +79,6 @@ class FaqItem {
 
 // ─────────────────────────────────────────────
 //  HARDCODED FAQ CONTENT  (DOST-STII)
-//  ACTION BUTTON RULES:
-//    • "About STII" items: only "Visit Website" + "Back to Menu" shown
-//      (Visit Website is a real hyperlink; Learn More removed)
-//    • "Get Directions": opens Google Maps deep-link
-//    • "Contact Form": opens feedback modal
-//    • Categories with only 1 question: action buttons suppressed
 // ─────────────────────────────────────────────
 final List<FaqCategory> kFaqCategories = [
   FaqCategory(
@@ -60,7 +90,6 @@ final List<FaqCategory> kFaqCategories = [
         question: 'What is DOST-STII?',
         answer:
         'The Science and Technology Information Institute (STII) is an agency under the Department of Science and Technology (DOST) of the Philippines. It serves as the country\'s primary S&T information clearing house, disseminating science and technology information to the public.',
-        // Only "Visit Website" will be rendered for About STII items
         actionButtons: ['Visit Website'],
       ),
       FaqItem(
@@ -164,6 +193,49 @@ final List<FaqCategory> kFaqCategories = [
 ];
 
 // ─────────────────────────────────────────────
+//  RICH TEXT HELPER
+//  Parses **bold** markers in a string into a TextSpan tree.
+//  No external package needed.
+// ─────────────────────────────────────────────
+List<TextSpan> _parseBoldText(String text, TextStyle base) {
+  final spans = <TextSpan>[];
+  final regex = RegExp(r'\*\*(.+?)\*\*');
+  int cursor = 0;
+
+  for (final match in regex.allMatches(text)) {
+    if (match.start > cursor) {
+      spans.add(TextSpan(text: text.substring(cursor, match.start), style: base));
+    }
+    spans.add(TextSpan(
+      text: match.group(1),
+      style: base.copyWith(fontWeight: FontWeight.w700),
+    ));
+    cursor = match.end;
+  }
+  if (cursor < text.length) {
+    spans.add(TextSpan(text: text.substring(cursor), style: base));
+  }
+  return spans;
+}
+
+/// Drop-in replacement for Text that renders **bold** markers correctly.
+class _RichText extends StatelessWidget {
+  final String text;
+  final TextStyle style;
+  final TextAlign? textAlign;
+
+  const _RichText(this.text, {required this.style, this.textAlign});
+
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      textAlign: textAlign ?? TextAlign.start,
+      text: TextSpan(children: _parseBoldText(text, style)),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
 //  CHAT MESSAGE MODEL
 // ─────────────────────────────────────────────
 enum MessageType { user, bot, categoryGrid, answerCard }
@@ -198,9 +270,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   final List<ChatMessage> _messages = [];
   bool _isTyping = false;
 
-  // Google Maps directions URL for DOST-STII
-  static const String _mapsUrl = 'https://www.google.com/maps/search/?api=1&query=DOST-STII+Bicutan+Taguig';
-
+  static const String _mapsUrl =
+      'https://www.google.com/maps/search/?api=1&query=DOST-STII+Bicutan+Taguig';
   static const String _stiiWebsiteUrl = 'https://www.stii.dost.gov.ph';
 
   @override
@@ -227,9 +298,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _addBotMessage(String text, {bool animate = true}) {
-    if (animate) {
-      setState(() => _isTyping = true);
-    }
+    if (animate) setState(() => _isTyping = true);
     Future.delayed(Duration(milliseconds: animate ? 600 : 0), () {
       if (!mounted) return;
       setState(() {
@@ -262,7 +331,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       setState(() => _isTyping = true);
     });
 
-    // If category has only 1 item, show the answer directly — no question list
     if (category.items.length == 1) {
       Future.delayed(const Duration(milliseconds: 900), () {
         if (!mounted) return;
@@ -273,6 +341,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         if (!mounted) return;
         setState(() {
           _isTyping = false;
+          // NOTE: **bold** markers are now rendered correctly via _RichText
           _messages.add(ChatMessage(
             text:
             "Here are some common questions about **${category.label}**. Tap one to get an answer:",
@@ -288,7 +357,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
   }
 
-  /// [skipUserBubble] – true when coming straight from a single-item category
   void _onQuestionTapped(FaqItem item, {bool skipUserBubble = false}) {
     if (!skipUserBubble) {
       setState(() {
@@ -305,12 +373,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       if (!mounted) return;
       setState(() {
         _isTyping = false;
-        _messages.add(ChatMessage(
-            text: item.answer, type: MessageType.bot, faqItem: item));
+        _messages.add(
+            ChatMessage(text: item.answer, type: MessageType.bot, faqItem: item));
       });
 
-      // Show action buttons only when the category has MORE than 1 item
-      // AND the item actually has action buttons defined
       final bool hasButtons =
           item.actionButtons != null && item.actionButtons!.isNotEmpty;
 
@@ -346,7 +412,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     });
   }
 
-  // ─── URL LAUNCHERS ──────────────────────────────
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -357,17 +422,18 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     }
   }
 
-  // ─── FEEDBACK MODAL ─────────────────────────────
-  void _showFeedbackModal() {
+  void _showFeedbackModal() async {
+    final profile = await UserProfileService().getUserProfile();
+    final username = profile?['displayName'] ?? 'Anonymous';
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _FeedbackModal(),
+      builder: (_) => _FeedbackModal(username: username),
     );
   }
 
-  // ─── ACTION BUTTON HANDLER ──────────────────────
   void _onActionButtonTapped(String label) {
     switch (label) {
       case 'Visit Website':
@@ -395,7 +461,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         });
         break;
       default:
-      // Fallback for any unlisted button
         setState(() {
           _messages.add(ChatMessage(text: label, type: MessageType.user));
         });
@@ -409,24 +474,25 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   // ─────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final layout = _Layout.of(context);
+
     return Scaffold(
       backgroundColor: kGrey,
-      appBar: _buildAppBar(),
-      // No input bar — fully automated chatbot flow
+      appBar: _buildAppBar(layout),
       body: Column(
         children: [
-          _buildAdvisoryBanner(),
+          _buildAdvisoryBanner(layout),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: EdgeInsets.symmetric(
+                  horizontal: layout.hPad, vertical: layout.r(12)),
               itemCount: _messages.length + (_isTyping ? 1 : 0),
               itemBuilder: (context, index) {
                 if (_isTyping && index == _messages.length) {
-                  return _buildTypingIndicator();
+                  return _buildTypingIndicator(layout);
                 }
-                return _buildMessageWidget(_messages[index]);
+                return _buildMessageWidget(_messages[index], layout);
               },
             ),
           ),
@@ -435,20 +501,23 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(_Layout layout) {
+    final avatarSize = layout.r(38);
+    final iconSize = layout.r(22);
+
     return AppBar(
       backgroundColor: kYaleBlue,
       foregroundColor: kWhite,
       elevation: 0,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+        icon: Icon(Icons.arrow_back_ios_new_rounded, size: layout.r(20)),
         onPressed: () => Navigator.of(context).maybePop(),
       ),
       title: Row(
         children: [
           Container(
-            width: 38,
-            height: 38,
+            width: avatarSize,
+            height: avatarSize,
             decoration: BoxDecoration(
               color: kWhite,
               shape: BoxShape.circle,
@@ -456,37 +525,38 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             ),
             child: ClipOval(
               child: Padding(
-                padding: const EdgeInsets.all(6.0),
+                padding: EdgeInsets.all(layout.r(6)),
                 child: Icon(Icons.support_agent_rounded,
-                    color: kYaleBlue, size: 22),
+                    color: kYaleBlue, size: iconSize),
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: layout.r(10)),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Smarty Bird',
                 style: TextStyle(
-                    fontSize: 15,
+                    fontSize: layout.sp(15),
                     fontWeight: FontWeight.w700,
                     color: kWhite),
               ),
               Row(
                 children: [
                   Container(
-                    width: 7,
-                    height: 7,
+                    width: layout.r(7),
+                    height: layout.r(7),
                     decoration: const BoxDecoration(
                       color: Color(0xFF4ADE80),
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  const Text('Online',
-                      style:
-                      TextStyle(fontSize: 11, color: Color(0xFFBFD9F5))),
+                  SizedBox(width: layout.r(4)),
+                  Text('Online',
+                      style: TextStyle(
+                          fontSize: layout.sp(11),
+                          color: const Color(0xFFBFD9F5))),
                 ],
               ),
             ],
@@ -502,90 +572,94 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     );
   }
 
-  Widget _buildAdvisoryBanner() {
+  Widget _buildAdvisoryBanner(_Layout layout) {
     return Container(
       color: const Color(0xFFFFF8E1),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: EdgeInsets.symmetric(
+          horizontal: layout.hPad, vertical: layout.r(8)),
       child: Row(
         children: [
-          const Icon(Icons.campaign_rounded,
-              size: 16, color: Color(0xFFF59E0B)),
-          const SizedBox(width: 8),
-          const Expanded(
+          Icon(Icons.campaign_rounded,
+              size: layout.r(16), color: const Color(0xFFF59E0B)),
+          SizedBox(width: layout.r(8)),
+          Expanded(
             child: Text(
               'Visit stii.dost.gov.ph for the latest S&T news and updates.',
               style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF92400E),
+                  fontSize: layout.sp(12),
+                  color: const Color(0xFF92400E),
                   fontWeight: FontWeight.w500),
             ),
           ),
-          const Icon(Icons.chevron_right_rounded,
-              size: 16, color: Color(0xFFF59E0B)),
+          Icon(Icons.chevron_right_rounded,
+              size: layout.r(16), color: const Color(0xFFF59E0B)),
         ],
       ),
     );
   }
 
-  Widget _buildMessageWidget(ChatMessage msg) {
+  Widget _buildMessageWidget(ChatMessage msg, _Layout layout) {
     switch (msg.type) {
       case MessageType.user:
-        return _buildUserBubble(msg.text!);
+        return _buildUserBubble(msg.text!, layout);
       case MessageType.bot:
-        return _buildBotBubble(msg.text!);
+        return _buildBotBubble(msg.text!, layout);
       case MessageType.categoryGrid:
-        if (msg.faqItem != null) {
-          return _buildActionButtons(msg.faqItem!);
-        }
-        return _buildCategoryGrid();
+        if (msg.faqItem != null) return _buildActionButtons(msg.faqItem!, layout);
+        return _buildCategoryGrid(layout);
       case MessageType.answerCard:
-        return _buildQuestionList(msg.category!);
+        return _buildQuestionList(msg.category!, layout);
     }
   }
 
-  Widget _buildUserBubble(String text) {
+  Widget _buildUserBubble(String text, _Layout layout) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12, left: 60),
+      padding: EdgeInsets.only(bottom: layout.r(12), left: layout.r(60)),
       child: Align(
         alignment: Alignment.centerRight,
-        child: Container(
-          padding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: kYaleBlue,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(18),
-              topRight: Radius.circular(18),
-              bottomLeft: Radius.circular(18),
-              bottomRight: Radius.circular(4),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: layout.bubbleMaxWidth),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+                horizontal: layout.r(16), vertical: layout.r(12)),
+            decoration: BoxDecoration(
+              color: kYaleBlue,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                topRight: Radius.circular(18),
+                bottomLeft: Radius.circular(18),
+                bottomRight: Radius.circular(4),
+              ),
+              boxShadow: [
+                BoxShadow(
+                    color: kYaleBlue.withOpacity(0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3))
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                  color: kYaleBlue.withOpacity(0.25),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3))
-            ],
-          ),
-          child: Text(
-            text,
-            style:
-            const TextStyle(color: kWhite, fontSize: 14, height: 1.4),
+            child: Text(
+              text,
+              style: TextStyle(
+                  color: kWhite, fontSize: layout.sp(14), height: 1.4),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildBotBubble(String text) {
+  Widget _buildBotBubble(String text, _Layout layout) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12, right: 60),
+      padding: EdgeInsets.only(bottom: layout.r(12), right: layout.r(60)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Bot avatar
           Container(
-            width: 32,
-            height: 32,
-            margin: const EdgeInsets.only(right: 8, top: 2),
+            width: layout.r(32),
+            height: layout.r(32),
+            margin:
+            EdgeInsets.only(right: layout.r(8), top: layout.r(2)),
             decoration: BoxDecoration(
               color: kYaleBlue,
               shape: BoxShape.circle,
@@ -596,32 +670,39 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                     offset: const Offset(0, 2))
               ],
             ),
-            child: const Icon(Icons.support_agent_rounded,
-                color: kWhite, size: 18),
+            child: Icon(Icons.support_agent_rounded,
+                color: kWhite, size: layout.r(18)),
           ),
+          // Bubble — Flexible so it never overflows on wide screens
           Flexible(
-            child: Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: kWhite,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(4),
-                  topRight: Radius.circular(18),
-                  bottomLeft: Radius.circular(18),
-                  bottomRight: Radius.circular(18),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: layout.bubbleMaxWidth),
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                    horizontal: layout.r(16), vertical: layout.r(12)),
+                decoration: BoxDecoration(
+                  color: kWhite,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    topRight: Radius.circular(18),
+                    bottomLeft: Radius.circular(18),
+                    bottomRight: Radius.circular(18),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.07),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3))
+                  ],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withOpacity(0.07),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3))
-                ],
-              ),
-              child: Text(
-                text,
-                style: const TextStyle(
-                    color: kEerieBlack, fontSize: 14, height: 1.5),
+                // ← _RichText parses **bold** correctly instead of showing asterisks
+                child: _RichText(
+                  text,
+                  style: TextStyle(
+                      color: kEerieBlack,
+                      fontSize: layout.sp(14),
+                      height: 1.5),
+                ),
               ),
             ),
           ),
@@ -630,43 +711,44 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     );
   }
 
-  Widget _buildCategoryGrid() {
+  Widget _buildCategoryGrid(_Layout layout) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.only(bottom: layout.r(16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 40, bottom: 8),
-            child: Text('Browse by category:',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500)),
+          Padding(
+            padding: EdgeInsets.only(left: layout.r(40), bottom: layout.r(8)),
+            child: Text(
+              'Browse by category:',
+              style: TextStyle(
+                  fontSize: layout.sp(12),
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500),
+            ),
           ),
           GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 3,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
+            crossAxisCount: layout.gridColumns,
+            mainAxisSpacing: layout.r(10),
+            crossAxisSpacing: layout.r(10),
             childAspectRatio: 1.1,
-            children: kFaqCategories
-                .map((cat) => _buildCategoryCard(cat))
-                .toList(),
+            children:
+            kFaqCategories.map((cat) => _buildCategoryCard(cat, layout)).toList(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCategoryCard(FaqCategory cat) {
+  Widget _buildCategoryCard(FaqCategory cat, _Layout layout) {
     return GestureDetector(
       onTap: () => _onCategoryTapped(cat),
       child: Container(
         decoration: BoxDecoration(
           color: kWhite,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(layout.r(14)),
           boxShadow: [
             BoxShadow(
                 color: Colors.black.withOpacity(0.06),
@@ -678,20 +760,20 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: layout.r(40),
+              height: layout.r(40),
               decoration: const BoxDecoration(
                 color: kLightBlue,
                 shape: BoxShape.circle,
               ),
-              child: Icon(cat.icon, color: kYaleBlue, size: 20),
+              child: Icon(cat.icon, color: kYaleBlue, size: layout.r(20)),
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: layout.r(6)),
             Text(
               cat.label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 11,
+              style: TextStyle(
+                  fontSize: layout.sp(11),
                   fontWeight: FontWeight.w600,
                   color: kEerieBlack),
             ),
@@ -701,29 +783,29 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     );
   }
 
-  Widget _buildQuestionList(FaqCategory category) {
+  Widget _buildQuestionList(FaqCategory category, _Layout layout) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16, left: 40),
+      padding: EdgeInsets.only(bottom: layout.r(16), left: layout.r(40)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: category.items
-            .map((item) => _buildQuestionChip(item))
+            .map((item) => _buildQuestionChip(item, layout))
             .toList(),
       ),
     );
   }
 
-  Widget _buildQuestionChip(FaqItem item) {
+  Widget _buildQuestionChip(FaqItem item, _Layout layout) {
     return GestureDetector(
       onTap: () => _onQuestionTapped(item),
       child: Container(
         width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 8, right: 20),
-        padding:
-        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        margin: EdgeInsets.only(bottom: layout.r(8), right: layout.r(20)),
+        padding: EdgeInsets.symmetric(
+            horizontal: layout.r(16), vertical: layout.r(12)),
         decoration: BoxDecoration(
           color: kWhite,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(layout.r(12)),
           border: Border.all(color: kYaleBlue.withOpacity(0.25), width: 1),
           boxShadow: [
             BoxShadow(
@@ -734,65 +816,58 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         ),
         child: Row(
           children: [
-            const Icon(Icons.help_outline_rounded,
-                size: 16, color: kYaleBlue),
-            const SizedBox(width: 10),
+            Icon(Icons.help_outline_rounded,
+                size: layout.r(16), color: kYaleBlue),
+            SizedBox(width: layout.r(10)),
             Expanded(
               child: Text(
                 item.question,
-                style: const TextStyle(
-                    fontSize: 13,
+                style: TextStyle(
+                    fontSize: layout.sp(13),
                     color: kYaleBlue,
                     fontWeight: FontWeight.w500),
               ),
             ),
-            const Icon(Icons.chevron_right_rounded,
-                size: 16, color: kYaleBlue),
+            Icon(Icons.chevron_right_rounded,
+                size: layout.r(16), color: kYaleBlue),
           ],
         ),
       ),
     );
   }
 
-  // ─────────────────────────────────────────────
-  //  ACTION BUTTONS
-  //  Rules applied here:
-  //   • "Visit Website" for About STII  → rendered as hyperlink chip
-  //   • "Get Directions"                → opens Google Maps
-  //   • "Contact Form"                  → opens feedback modal
-  //   • Always appends "Back to Menu"
-  // ─────────────────────────────────────────────
-  Widget _buildActionButtons(FaqItem item) {
+  Widget _buildActionButtons(FaqItem item, _Layout layout) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16, left: 40),
+      padding: EdgeInsets.only(bottom: layout.r(16), left: layout.r(40)),
       child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: layout.r(8),
+        runSpacing: layout.r(8),
         children: [
-          ...item.actionButtons!.map((label) => _buildActionButton(label)),
-          _buildActionButton('Back to Menu',
+          ...item.actionButtons!
+              .map((label) => _buildActionButton(label, layout)),
+          _buildActionButton('Back to Menu', layout,
               isSecondary: true, icon: Icons.home_rounded),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton(String label,
+  Widget _buildActionButton(String label, _Layout layout,
       {bool isSecondary = false, IconData? icon}) {
-    // "Visit Website" gets a link icon and special underlined style
     final bool isLink = label == 'Visit Website';
 
     return GestureDetector(
       onTap: () => _onActionButtonTapped(label),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        padding: EdgeInsets.symmetric(
+            horizontal: layout.r(14), vertical: layout.r(9)),
         decoration: BoxDecoration(
           color: isSecondary
               ? kWhite
               : isLink
               ? const Color(0xFFE8F0F9)
               : kRedPigment,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(layout.r(20)),
           border: isSecondary
               ? Border.all(color: kRedPigment, width: 1.5)
               : isLink
@@ -817,18 +892,18 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                       : label == 'Contact Form'
                       ? Icons.feedback_outlined
                       : Icons.arrow_forward_rounded),
-              size: 14,
+              size: layout.r(14),
               color: isSecondary
                   ? kRedPigment
                   : isLink
                   ? kYaleBlue
                   : kWhite,
             ),
-            const SizedBox(width: 5),
+            SizedBox(width: layout.r(5)),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: layout.sp(12),
                 fontWeight: FontWeight.w600,
                 color: isSecondary
                     ? kRedPigment
@@ -846,26 +921,26 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     );
   }
 
-  Widget _buildTypingIndicator() {
+  Widget _buildTypingIndicator(_Layout layout) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12, right: 60),
+      padding: EdgeInsets.only(bottom: layout.r(12), right: layout.r(60)),
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
-            margin: const EdgeInsets.only(right: 8),
+            width: layout.r(32),
+            height: layout.r(32),
+            margin: EdgeInsets.only(right: layout.r(8)),
             decoration: const BoxDecoration(
                 color: kYaleBlue, shape: BoxShape.circle),
-            child: const Icon(Icons.support_agent_rounded,
-                color: kWhite, size: 18),
+            child: Icon(Icons.support_agent_rounded,
+                color: kWhite, size: layout.r(18)),
           ),
           Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.symmetric(
+                horizontal: layout.r(16), vertical: layout.r(12)),
             decoration: BoxDecoration(
               color: kWhite,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(layout.r(18)),
               boxShadow: [
                 BoxShadow(
                     color: Colors.black.withOpacity(0.07),
@@ -891,7 +966,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 //  FEEDBACK MODAL  (saves to Firebase Firestore)
 // ─────────────────────────────────────────────
 class _FeedbackModal extends StatefulWidget {
-  const _FeedbackModal();
+  final String username;
+  const _FeedbackModal({required this.username});
 
   @override
   State<_FeedbackModal> createState() => _FeedbackModalState();
@@ -908,8 +984,8 @@ class _FeedbackModalState extends State<_FeedbackModal> {
     if (_rating == 0 && text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content:
-            Text('Please provide a rating or feedback before submitting.')),
+            content: Text(
+                'Please provide a rating or feedback before submitting.')),
       );
       return;
     }
@@ -918,6 +994,7 @@ class _FeedbackModalState extends State<_FeedbackModal> {
 
     try {
       await FirebaseFirestore.instance.collection('chatbot_feedback').add({
+        'username': widget.username,
         'feedback': text,
         'rating': _rating,
         'timestamp': FieldValue.serverTimestamp(),
@@ -938,50 +1015,53 @@ class _FeedbackModalState extends State<_FeedbackModal> {
 
   @override
   Widget build(BuildContext context) {
+    final layout = _Layout.of(context);
     return Padding(
-      padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+      EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         decoration: const BoxDecoration(
           color: kWhite,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: _submitted ? _buildSuccess() : _buildForm(),
+        padding: EdgeInsets.fromLTRB(
+            layout.r(24), layout.r(16), layout.r(24), layout.r(32)),
+        child: _submitted ? _buildSuccess(layout) : _buildForm(layout),
       ),
     );
   }
 
-  Widget _buildSuccess() {
+  Widget _buildSuccess(_Layout layout) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 16),
+        SizedBox(height: layout.r(16)),
         Container(
-          width: 64,
-          height: 64,
+          width: layout.r(64),
+          height: layout.r(64),
           decoration: const BoxDecoration(
             color: Color(0xFFE6F4EA),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.check_rounded,
-              color: Color(0xFF34A853), size: 36),
+          child: Icon(Icons.check_rounded,
+              color: const Color(0xFF34A853), size: layout.r(36)),
         ),
-        const SizedBox(height: 16),
-        const Text(
+        SizedBox(height: layout.r(16)),
+        Text(
           'Thank you for your feedback!',
           style: TextStyle(
-              fontSize: 17,
+              fontSize: layout.sp(17),
               fontWeight: FontWeight.w700,
               color: kEerieBlack),
         ),
-        const SizedBox(height: 8),
-        const Text(
+        SizedBox(height: layout.r(8)),
+        Text(
           'Your response has been recorded and will help us improve our services.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, color: Colors.grey),
+          style:
+          TextStyle(fontSize: layout.sp(13), color: Colors.grey),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: layout.r(24)),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
@@ -989,19 +1069,21 @@ class _FeedbackModalState extends State<_FeedbackModal> {
               backgroundColor: kYaleBlue,
               foregroundColor: kWhite,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+                  borderRadius: BorderRadius.circular(layout.r(14))),
+              padding: EdgeInsets.symmetric(vertical: layout.r(14)),
             ),
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close',
-                style: TextStyle(fontWeight: FontWeight.w600)),
+            child: Text('Close',
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: layout.sp(14))),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildForm() {
+  Widget _buildForm(_Layout layout) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1009,68 +1091,73 @@ class _FeedbackModalState extends State<_FeedbackModal> {
         // Handle bar
         Center(
           child: Container(
-            width: 40,
-            height: 4,
+            width: layout.r(40),
+            height: layout.r(4),
             decoration: BoxDecoration(
               color: Colors.grey.shade300,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: layout.r(20)),
         // Header
         Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: layout.r(40),
+              height: layout.r(40),
               decoration: const BoxDecoration(
                 color: kLightBlue,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.feedback_outlined,
-                  color: kYaleBlue, size: 20),
+              child: Icon(Icons.feedback_outlined,
+                  color: kYaleBlue, size: layout.r(20)),
             ),
-            const SizedBox(width: 12),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Share Your Feedback',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: kEerieBlack),
-                ),
-                Text(
-                  'Help us improve DOST-STII\'s chatbot',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
+            SizedBox(width: layout.r(12)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Share Your Feedback',
+                    style: TextStyle(
+                        fontSize: layout.sp(16),
+                        fontWeight: FontWeight.w700,
+                        color: kEerieBlack),
+                  ),
+                  Text(
+                    'Help us improve DOST-STII\'s chatbot',
+                    style: TextStyle(
+                        fontSize: layout.sp(12), color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: layout.r(24)),
 
         // Star rating
-        const Text(
+        Text(
           'How would you rate your experience?',
           style: TextStyle(
-              fontSize: 13,
+              fontSize: layout.sp(13),
               fontWeight: FontWeight.w600,
               color: kEerieBlack),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: layout.r(10)),
         Row(
           children: List.generate(5, (i) {
             final starIndex = i + 1;
             return GestureDetector(
               onTap: () => setState(() => _rating = starIndex),
               child: Padding(
-                padding: const EdgeInsets.only(right: 6),
+                padding: EdgeInsets.only(right: layout.r(6)),
                 child: Icon(
-                  starIndex <= _rating ? Icons.star_rounded : Icons.star_border_rounded,
-                  size: 36,
+                  starIndex <= _rating
+                      ? Icons.star_rounded
+                      : Icons.star_border_rounded,
+                  size: layout.r(36),
                   color: starIndex <= _rating
                       ? const Color(0xFFF59E0B)
                       : Colors.grey.shade300,
@@ -1081,49 +1168,49 @@ class _FeedbackModalState extends State<_FeedbackModal> {
         ),
         if (_rating > 0)
           Padding(
-            padding: const EdgeInsets.only(top: 6),
+            padding: EdgeInsets.only(top: layout.r(6)),
             child: Text(
               ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent!'][_rating],
-              style: const TextStyle(
-                  fontSize: 12,
+              style: TextStyle(
+                  fontSize: layout.sp(12),
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFFF59E0B)),
+                  color: const Color(0xFFF59E0B)),
             ),
           ),
 
-        const SizedBox(height: 20),
+        SizedBox(height: layout.r(20)),
 
         // Text feedback
-        const Text(
+        Text(
           'Additional comments (optional)',
           style: TextStyle(
-              fontSize: 13,
+              fontSize: layout.sp(13),
               fontWeight: FontWeight.w600,
               color: kEerieBlack),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: layout.r(8)),
         TextField(
           controller: _feedbackController,
           maxLines: 4,
           maxLength: 500,
-          style: const TextStyle(fontSize: 14, color: kEerieBlack),
+          style: TextStyle(fontSize: layout.sp(14), color: kEerieBlack),
           decoration: InputDecoration(
             hintText: 'Tell us about your experience...',
             hintStyle:
-            TextStyle(color: Colors.grey.shade400, fontSize: 14),
+            TextStyle(color: Colors.grey.shade400, fontSize: layout.sp(14)),
             filled: true,
             fillColor: kGrey,
-            contentPadding: const EdgeInsets.all(14),
+            contentPadding: EdgeInsets.all(layout.r(14)),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(layout.r(14)),
               borderSide: BorderSide.none,
             ),
             counterStyle:
-            TextStyle(fontSize: 11, color: Colors.grey.shade400),
+            TextStyle(fontSize: layout.sp(11), color: Colors.grey.shade400),
           ),
         ),
 
-        const SizedBox(height: 8),
+        SizedBox(height: layout.r(8)),
 
         // Submit button
         SizedBox(
@@ -1133,20 +1220,21 @@ class _FeedbackModalState extends State<_FeedbackModal> {
               backgroundColor: kYaleBlue,
               foregroundColor: kWhite,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+                  borderRadius: BorderRadius.circular(layout.r(14))),
+              padding: EdgeInsets.symmetric(vertical: layout.r(14)),
             ),
             onPressed: _isSubmitting ? null : _submit,
             child: _isSubmitting
-                ? const SizedBox(
-              height: 18,
-              width: 18,
-              child: CircularProgressIndicator(
+                ? SizedBox(
+              height: layout.r(18),
+              width: layout.r(18),
+              child: const CircularProgressIndicator(
                   color: kWhite, strokeWidth: 2),
             )
-                : const Text('Submit Feedback',
+                : Text('Submit Feedback',
                 style: TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: 14)),
+                    fontWeight: FontWeight.w600,
+                    fontSize: layout.sp(14))),
           ),
         ),
       ],

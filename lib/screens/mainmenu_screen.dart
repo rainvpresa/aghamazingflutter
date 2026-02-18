@@ -30,6 +30,28 @@ class UiAssets {
   static void clearCache() => _cache = null;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Responsive layout helper — acts like CSS media queries.
+// isShort = true  →  ~HD+ 720p devices  (e.g. 1520×720, logical ~760dp tall)
+// isShort = false →  ~FHD+ devices      (e.g. 1080×2400, logical ~960dp tall)
+// ─────────────────────────────────────────────────────────────────────────────
+class _Layout {
+  final bool isShort;
+
+  _Layout(BuildContext context)
+      : isShort = MediaQuery.of(context).size.height < 750;
+
+  // Column flex weights
+  int get mascotFlex      => isShort ? 35 : 48;
+  int get leaderboardFlex => isShort ? 24 : 30;
+
+  // SizedBox heights as fraction of LayoutBuilder maxHeight
+  double get mascotTextBottom => isShort ? 0.85 : 0.80;  // push it higher
+  double get topBarFraction    => isShort ? 0.06  : 0.05;
+  double get gemGrabFraction   => isShort ? 0.08  : 0.065;  // ← slightly taller tap target
+  double get bottomPadFraction => isShort ? 0.002 : 0.005;
+}
+
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
   static const String background = 'assets/images/backgrounds/mainmenu_screen.png';
@@ -66,12 +88,12 @@ class _MainMenuBody extends StatefulWidget {
   @override
   State<_MainMenuBody> createState() => _MainMenuBodyState();
 }
+
 class _MainMenuBodyState extends State<_MainMenuBody> {
   Timer? _energyRegenTimer;
   int _timeUntilNextRegen = 0;
   final int _maxEnergy = 100;
 
-  // Leaderboard state
   List<Map<String, dynamic>> _leaderboardData = [];
   bool _isLoadingLeaderboard = false;
 
@@ -98,9 +120,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
       }
     } catch (e) {
       debugPrint('Error loading leaderboard: $e');
-      if (mounted) {
-        setState(() => _isLoadingLeaderboard = false);
-      }
+      if (mounted) setState(() => _isLoadingLeaderboard = false);
     }
   }
 
@@ -108,7 +128,8 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
     final ctx = context;
     final imagePaths = widget.uiAssets.values.where((p) {
       final low = p.toLowerCase();
-      return low.endsWith('.png') || low.endsWith('.jpg') || low.endsWith('.jpeg') || low.endsWith('.webp');
+      return low.endsWith('.png') || low.endsWith('.jpg') ||
+          low.endsWith('.jpeg') || low.endsWith('.webp');
     }).toSet();
     for (final path in imagePaths) {
       try {
@@ -121,26 +142,15 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
 
   void _startEnergyRegenTimer() {
     _energyRegenTimer?.cancel();
-
     _energyRegenTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (!mounted) return;
-
       final info = await EnergyManager.instance.getEnergyInfo();
       final int current = info['current'] ?? 0;
       final int secondsNext = info['secondsUntilNext'] ?? 0;
-
       if (current < _maxEnergy) {
-        if (mounted) {
-          setState(() {
-            _timeUntilNextRegen = secondsNext;
-          });
-        }
+        if (mounted) setState(() => _timeUntilNextRegen = secondsNext);
       } else {
-        if (mounted && _timeUntilNextRegen != 0) {
-          setState(() {
-            _timeUntilNextRegen = 0;
-          });
-        }
+        if (mounted && _timeUntilNextRegen != 0) setState(() => _timeUntilNextRegen = 0);
       }
     });
   }
@@ -157,25 +167,24 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
     final screenW = mq.size.width;
-    final screenH = mq.size.height;
+
+    // Single layout helper — read once, use everywhere
+    final l = _Layout(context);
 
     // ═══════════════════════════════════════════════════════════════
     // 🎮 BUTTON SIZE CUSTOMIZATION - EDIT THESE VALUES:
     // ═══════════════════════════════════════════════════════════════
-    // All values are percentages of screen width (0.20 = 20% of screen width)
+    final double selectW  = screenW * 0.43;
+    final double profileW = screenW * 0.16;
+    final double chatW    = screenW * 0.16;
+    final double scanW    = screenW * 0.16;
+    final double topIconW = screenW * 0.24;
 
-    final double selectW = screenW * 0.43;      // ← SELECT button width
-    final double profileW = screenW * 0.16;     // ← PROFILE button width
-    final double chatW = screenW * 0.16;        // ← CHAT button width
-    final double scanW = screenW * 0.16;        // ← AR SCAN button width
-    final double topIconW = screenW * 0.24;     // ← TOP STATS (coins/gems/energy) width
-
-    // Height multipliers - these are ratios of the width (0.50 = 50% of width)
-    final double selectH = selectW * 0.30;      // ← SELECT button height
-    final double profileH = profileW * 0.55;    // ← PROFILE button height
-    final double chatH = chatW * 0.55;          // ← CHAT button height
-    final double scanH = scanW * 0.88;          // ← AR SCAN button height
-    final double topIconH = topIconW * 0.32;    // ← TOP STATS height
+    final double selectH  = selectW  * 0.30;
+    final double profileH = profileW * 0.55;
+    final double chatH    = chatW    * 0.55;
+    final double scanH    = scanW    * 0.80;
+    final double topIconH = topIconW * 0.32;
     // ═══════════════════════════════════════════════════════════════
 
     final mascotAsset = asset('mascot_lottie').isNotEmpty
@@ -186,20 +195,17 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              MainMenuScreen.background,
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset(MainMenuScreen.background, fit: BoxFit.cover),
           ),
-
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return Column(
                   children: [
-                    // Top stats row - FIXED HEIGHT
+
+                    // ── Top stats row ──────────────────────────────
                     SizedBox(
-                      height: constraints.maxHeight * 0.05, // 5% of screen height
+                      height: constraints.maxHeight * l.topBarFraction,
                       child: Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: screenW * 0.02,
@@ -208,7 +214,6 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            // Bubble Power
                             Consumer<SessionService>(
                               builder: (context, s, _) => IconStatButton(
                                 assetPath: asset('bubble_power'),
@@ -230,8 +235,6 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                               ),
                             ),
                             SizedBox(width: screenW * 0.025),
-
-                            // Gems
                             Consumer<SessionService>(
                               builder: (context, s, _) => IconStatButton(
                                 assetPath: asset('gems'),
@@ -253,8 +256,6 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                               ),
                             ),
                             SizedBox(width: screenW * 0.025),
-
-                            // Energy with Timer
                             Consumer<SessionService>(
                               builder: (context, s, _) => _EnergyDisplay(
                                 assetPath: asset('energy'),
@@ -280,14 +281,13 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                       ),
                     ),
 
-                    // Mascot section - FLEXIBLE
+                    // ── Mascot section ─────────────────────────────
                     Expanded(
-                      flex: 48, // 48% of available space
+                      flex: l.mascotFlex,
                       child: LayoutBuilder(
                         builder: (context, mascotConstraints) {
                           return Stack(
                             children: [
-                              // Centered mascot
                               Center(
                                 child: SizedBox(
                                   width: screenW * 0.94,
@@ -302,9 +302,20 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                 ),
                               ),
 
-                              // AR Scan button (left side)
+                              // Mascot tour guide text image
                               Positioned(
-                                bottom: mascotConstraints.maxHeight * 0.24,
+                                bottom: mascotConstraints.maxHeight * l.mascotTextBottom,
+                                left: screenW * -0.08,
+                                right: screenW * 0.40,
+                                child: Image.asset(
+                                  asset('smarty_header'),
+                                  fit: BoxFit.contain,
+                                  height: mascotConstraints.maxHeight * (l.isShort ? 0.18 : 0.20), //
+                                ),
+                              ),
+
+                              Positioned(
+                                bottom: mascotConstraints.maxHeight * (l.isShort ? 0.24 : 0.24),
                                 left: screenW * 0.04,
                                 child: ImageAssetButton(
                                   assetPath: asset('btn_arscan'),
@@ -314,17 +325,12 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                   onTap: () => Navigator.of(context).push(
                                     MaterialPageRoute(builder: (_) => const ARScanScreen()),
                                   ),
-                                  fallbackWidget: const Icon(
-                                    Icons.qr_code_scanner,
-                                    color: Colors.white,
-                                  ),
+                                  fallbackWidget: const Icon(Icons.qr_code_scanner, color: Colors.white),
                                 ),
                               ),
-
-                              // Profile & Chat buttons
                               Positioned(
                                 right: screenW * 0.045,
-                                bottom: mascotConstraints.maxHeight * 0.16,
+                                bottom: mascotConstraints.maxHeight * (l.isShort ? 0.16 : 0.16),
                                 child: Row(
                                   children: [
                                     ImageAssetButton(
@@ -335,10 +341,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                       onTap: () => Navigator.of(context).push(
                                         MaterialPageRoute(builder: (_) => const ProfileScreen()),
                                       ),
-                                      fallbackWidget: const Icon(
-                                        Icons.person,
-                                        color: Colors.white,
-                                      ),
+                                      fallbackWidget: const Icon(Icons.person, color: Colors.white),
                                     ),
                                     SizedBox(width: screenW * 0.02),
                                     ImageAssetButton(
@@ -349,19 +352,15 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                       onTap: () => Navigator.of(context).push(
                                         MaterialPageRoute(builder: (_) => const ChatbotScreen()),
                                       ),
-                                      fallbackWidget: const Icon(
-                                        Icons.chat_bubble,
-                                        color: Colors.white,
-                                      ),
+                                      fallbackWidget: const Icon(Icons.chat_bubble, color: Colors.white),
                                     ),
                                   ],
                                 ),
                               ),
 
-                              // SELECT button
                               Positioned(
                                 right: screenW * 0.04,
-                                bottom: mascotConstraints.maxHeight * 0.03,
+                                bottom: mascotConstraints.maxHeight * (l.isShort ? 0.02 : 0.03),
                                 child: ImageAssetButton(
                                   assetPath: asset('btn_select'),
                                   width: selectW,
@@ -397,13 +396,13 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                       ),
                     ),
 
-                    // Leaderboards section - FLEXIBLE
+                    // ── Leaderboard section ────────────────────────
                     Expanded(
-                      flex: 30, // 30% of available space
+                      flex: l.leaderboardFlex,
                       child: Padding(
                         padding: EdgeInsets.symmetric(
-                          horizontal: screenW * 0.015,
-                          vertical: constraints.maxHeight * 0.0025, // use constraints instead of screenH
+                          horizontal: screenW * 0.020,
+                          vertical: constraints.maxHeight * 0.0025,
                         ),
                         child: Container(
                           width: double.infinity,
@@ -423,7 +422,6 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Header row - flexible height
                               Padding(
                                 padding: EdgeInsets.symmetric(vertical: screenW * 0.01),
                                 child: Row(
@@ -452,14 +450,13 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                         child: Icon(
                                           Icons.emoji_events,
                                           color: Colors.white,
-                                          size: screenW * 0.10,
+                                          size: screenW * 0.08,
                                         ),
                                       ),
                                     const Spacer(),
-                                    // Refresh button - simple icon button
                                     Container(
-                                      width: screenW * 0.10, // ← EDIT THIS to change TRY button width
-                                      height: screenW * 0.10, // ← EDIT THIS to change TRY button height
+                                      width: screenW * 0.10,
+                                      height: screenW * 0.10,
                                       decoration: BoxDecoration(
                                         color: const Color(0xFF6C5CE7),
                                         borderRadius: BorderRadius.circular(12),
@@ -479,7 +476,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                           child: Icon(
                                             Icons.refresh,
                                             color: Colors.white,
-                                            size: screenW * 0.065, // ← EDIT THIS to change icon size
+                                            size: screenW * 0.065,
                                           ),
                                         ),
                                       ),
@@ -487,14 +484,10 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                   ],
                                 ),
                               ),
-
-                              // Scrollable leaderboard items
                               Expanded(
                                 child: _isLoadingLeaderboard
                                     ? const Center(
-                                  child: CircularProgressIndicator(
-                                    color: Colors.amber,
-                                  ),
+                                  child: CircularProgressIndicator(color: Colors.amber),
                                 )
                                     : _leaderboardData.isEmpty
                                     ? Center(
@@ -530,16 +523,14 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                       ),
                     ),
 
-                    // Gem Grab button - FIXED HEIGHT
+                    // ── Gem Grab button ────────────────────────────
                     SizedBox(
-                      height: constraints.maxHeight * 0.065, // 6.5% reduced from 7%
+                      height: constraints.maxHeight * l.gemGrabFraction,
                       child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: screenW * 0.015),
                         child: Center(
                           child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: screenW * 0.60,
-                            ),
+                            constraints: BoxConstraints(maxWidth: screenW * 0.60),
                             child: AspectRatio(
                               aspectRatio: 983 / 278,
                               child: asset('btn_gem_grab').isNotEmpty
@@ -575,7 +566,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                       ),
                     ),
 
-                    SizedBox(height: constraints.maxHeight * 0.005), // reduced from 0.01
+                    SizedBox(height: constraints.maxHeight * l.bottomPadFraction),
                   ],
                 );
               },
@@ -615,7 +606,6 @@ class IconStatButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
@@ -640,11 +630,12 @@ class IconStatButton extends StatelessWidget {
             ),
             Text(
               value,
-              style: textStyle ?? TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: screenWidth * 0.032, // Responsive font size
-              ),
+              style: textStyle ??
+                  TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: screenWidth * 0.032,
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -674,16 +665,9 @@ class _EnergyDisplay extends StatelessWidget {
     this.onTap,
   });
 
-  String _formatTime(int seconds) {
-    final minutes = seconds ~/ 60;
-    final secs = seconds % 60;
-    return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
@@ -692,7 +676,6 @@ class _EnergyDisplay extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Background image
             Image.asset(
               assetPath,
               width: width,
@@ -707,8 +690,6 @@ class _EnergyDisplay extends StatelessWidget {
                 ),
               ),
             ),
-
-            // Energy text only - no timer
             Text(
               '$currentEnergy',
               style: TextStyle(
@@ -747,21 +728,13 @@ class ImageAssetButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final BoxFit fit = fill ? BoxFit.fill : BoxFit.contain;
-
     if (assetPath.isEmpty) {
-      if (fallbackWidget != null) {
-        return SizedBox(
-          width: width,
-          height: height,
-          child: Center(child: fallbackWidget),
-        );
-      }
       return SizedBox(
         width: width,
         height: height,
-        child: ElevatedButton(
-          onPressed: onTap,
-          child: const SizedBox(),
+        child: Center(
+          child: fallbackWidget ??
+              ElevatedButton(onPressed: onTap, child: const SizedBox()),
         ),
       );
     }
@@ -772,29 +745,20 @@ class ImageAssetButton extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
-        errorBuilder: (ctx, err, st) {
-          if (fallbackWidget != null) {
-            return SizedBox(
-              width: width,
-              height: height,
-              child: Center(child: fallbackWidget),
-            );
-          }
-          return SizedBox(
-            width: width,
-            height: height,
-            child: ElevatedButton(
-              onPressed: onTap,
-              child: const SizedBox(),
-            ),
-          );
-        },
+        errorBuilder: (ctx, err, st) => SizedBox(
+          width: width,
+          height: height,
+          child: Center(
+            child: fallbackWidget ??
+                ElevatedButton(onPressed: onTap, child: const SizedBox()),
+          ),
+        ),
       ),
     );
   }
 }
 
-/// Updated Leaderboard Item with responsive scaling
+/// Leaderboard item
 class _LeaderboardItem extends StatelessWidget {
   final int rank;
   final String displayName;
@@ -816,27 +780,19 @@ class _LeaderboardItem extends StatelessWidget {
 
   Color _getRankColor(int rank) {
     switch (rank) {
-      case 1:
-        return const Color(0xFFFFC11E); // Epic - Gold
-      case 2:
-        return const Color(0xFFFE9898); // Awesome - Pink
-      case 3:
-        return const Color(0xFF98FE98); // Good - Green
-      default:
-        return const Color(0xFF98EBFE); // Smarty - Cyan
+      case 1: return const Color(0xFFFFC11E);
+      case 2: return const Color(0xFFFE9898);
+      case 3: return const Color(0xFF98FE98);
+      default: return const Color(0xFF98EBFE);
     }
   }
 
   String _getRankTitle(int rank) {
     switch (rank) {
-      case 1:
-        return 'EPIC';
-      case 2:
-        return 'AWESOME';
-      case 3:
-        return 'GOOD';
-      default:
-        return 'SMARTY';
+      case 1: return 'EPIC';
+      case 2: return 'AWESOME';
+      case 3: return 'GOOD';
+      default: return 'SMARTY';
     }
   }
 
@@ -862,7 +818,6 @@ class _LeaderboardItem extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Rank badge at top
               Container(
                 width: 80,
                 height: 80,
@@ -889,8 +844,6 @@ class _LeaderboardItem extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Player name
               Text(
                 displayName,
                 style: const TextStyle(
@@ -901,8 +854,6 @@ class _LeaderboardItem extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-
-              // Rank title
               Text(
                 '#$rank ${_getRankTitle(rank)}',
                 style: TextStyle(
@@ -912,8 +863,6 @@ class _LeaderboardItem extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Score display
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 decoration: BoxDecoration(
@@ -939,8 +888,6 @@ class _LeaderboardItem extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Close button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -981,17 +928,13 @@ class _LeaderboardItem extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           image: itemBgAsset.isNotEmpty
-              ? DecorationImage(
-            image: AssetImage(itemBgAsset),
-            fit: BoxFit.fill,
-          )
+              ? DecorationImage(image: AssetImage(itemBgAsset), fit: BoxFit.fill)
               : null,
           color: itemBgAsset.isEmpty ? Colors.black26 : null,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           children: [
-            // Rank Badge
             SizedBox(
               width: screenWidth * 0.125,
               height: screenWidth * 0.125,
@@ -1003,16 +946,12 @@ class _LeaderboardItem extends StatelessWidget {
               )
                   : _buildFallbackBadge(),
             ),
-
             SizedBox(width: screenWidth * 0.03),
-
-            // Rank Title and Username
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Rank Title (e.g., "#1 EPIC")
                   Row(
                     children: [
                       Text(
@@ -1034,7 +973,6 @@ class _LeaderboardItem extends StatelessWidget {
                     ],
                   ),
                   SizedBox(height: screenWidth * 0.005),
-                  // Username
                   Text(
                     displayName,
                     style: TextStyle(
@@ -1047,10 +985,7 @@ class _LeaderboardItem extends StatelessWidget {
                 ],
               ),
             ),
-
             SizedBox(width: screenWidth * 0.02),
-
-            // Score with gem icon
             Container(
               padding: EdgeInsets.symmetric(
                 horizontal: screenWidth * 0.02,
@@ -1063,11 +998,7 @@ class _LeaderboardItem extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.diamond,
-                    color: const Color(0xFF6C5CE7),
-                    size: screenWidth * 0.04,
-                  ),
+                  Icon(Icons.diamond, color: const Color(0xFF6C5CE7), size: screenWidth * 0.04),
                   SizedBox(width: screenWidth * 0.01),
                   Text(
                     score.toString(),
@@ -1114,7 +1045,8 @@ class _LeaderboardItem extends StatelessWidget {
     );
   }
 }
-/// Custom styled SnackBar that matches app theme
+
+/// Custom styled SnackBar
 void showStyledSnackBar(BuildContext context, {
   required String title,
   required String message,
@@ -1140,22 +1072,12 @@ void showStyledSnackBar(BuildContext context, {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
+                Text(title,
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
+                Text(message,
+                    style: const TextStyle(color: Colors.white70, fontSize: 14)),
               ],
             ),
           ),
@@ -1163,15 +1085,14 @@ void showStyledSnackBar(BuildContext context, {
       ),
       backgroundColor: backgroundColor,
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       duration: const Duration(seconds: 2),
     ),
   );
 }
+
 /// Mascot animation
 class _MascotAnimation extends StatelessWidget {
   final String asset;
@@ -1199,18 +1120,10 @@ class _MascotAnimation extends StatelessWidget {
           future: rootBundle.load(asset),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Container(
-                color: Colors.transparent,
-                child: const Center(child: CircularProgressIndicator()),
-              );
+              return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError || !snapshot.hasData) {
-              return Container(
-                color: Colors.transparent,
-                child: const Center(
-                  child: Icon(Icons.pets, size: 120, color: Colors.white),
-                ),
-              );
+              return const Center(child: Icon(Icons.pets, size: 120, color: Colors.white));
             }
             try {
               return ClipRect(
@@ -1230,12 +1143,7 @@ class _MascotAnimation extends StatelessWidget {
               );
             } catch (e, st) {
               debugPrint('Lottie error $e\n$st');
-              return Container(
-                color: Colors.transparent,
-                child: const Center(
-                  child: Icon(Icons.pets, size: 120, color: Colors.white),
-                ),
-              );
+              return const Center(child: Icon(Icons.pets, size: 120, color: Colors.white));
             }
           },
         ),
