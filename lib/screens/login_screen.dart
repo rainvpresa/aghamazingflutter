@@ -37,13 +37,10 @@ class _LoginScreenState extends State<LoginScreen> {
     _loadSavedEmail();
   }
 
-  // Automatically load the last used email
   Future<void> _loadSavedEmail() async {
     final prefs = await SharedPreferences.getInstance();
     final savedEmail = prefs.getString('LastUsedEmail') ?? '';
-    if (savedEmail.isNotEmpty) {
-      _emailCtl.text = savedEmail;
-    }
+    if (savedEmail.isNotEmpty) _emailCtl.text = savedEmail;
   }
 
   @override
@@ -85,10 +82,9 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (!mounted) return;
-      Navigator.of(context).pop(); // Close loading dialog
+      Navigator.of(context).pop();
 
       if (result['success'] == true) {
-        // Always save the email for next time
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('LastUsedEmail', email);
 
@@ -99,10 +95,6 @@ class _LoginScreenState extends State<LoginScreen> {
               backgroundColor: Colors.green,
             ),
           );
-
-          // Firebase Auth's StreamBuilder in main.dart will automatically
-          // navigate to MainMenuScreen - no manual navigation needed!
-          // But we can still navigate immediately for better UX:
           Navigator.of(context).pushReplacementNamed('/mainmenu');
         }
       } else {
@@ -120,7 +112,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) Navigator.of(context).pop();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Login failed: $e'), backgroundColor: Colors.red),
         );
       }
       _passCtl.clear();
@@ -134,209 +127,222 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Color get _mutedTextColor => const Color(0xFF8391A1);
   Color get _secondaryTextColor => const Color(0xFF636363);
   Color get _linkColor => const Color(0xFF1957A8);
   Color get _linkPressedColor => const Color(0xFF0F3E73);
 
+  InputDecoration _inputDecoration(String hint, IconData icon, {Widget? suffix}) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: Colors.white.withOpacity(0.95),
+      contentPadding:
+      const EdgeInsets.symmetric(vertical: 18.0, horizontal: 16.0),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(28.0),
+        borderSide: BorderSide.none,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
+          // Background
           Positioned.fill(
             child: Image.asset(
               _bg,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stack) =>
+              errorBuilder: (_, __, ___) =>
                   Container(color: Colors.blue.shade200),
             ),
           ),
+
+          // Content
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
+                // Proportional top offset — naturally smaller on shorter screens
+                final topOffset = constraints.maxHeight * 0.38;
+
                 return SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                  ),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: IntrinsicHeight(
+                    constraints:
+                    BoxConstraints(minHeight: constraints.maxHeight),
+                    child: Padding(
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 28.0),
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Spacer(flex: 4),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 28.0),
+                          // Proportional spacer — adapts to screen height
+                          SizedBox(height: topOffset),
+
+                          // Form card
+                          Center(
                             child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 420),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const SizedBox(height: 24),
-                                  Form(
-                                    key: _formKey,
-                                    child: Column(
-                                      children: [
-                                        TextFormField(
-                                          controller: _emailCtl,
-                                          keyboardType: TextInputType.emailAddress,
-                                          validator: (v) => (v == null ||
-                                              v.trim().isEmpty)
-                                              ? 'Please enter email'
-                                              : null,
-                                          decoration: InputDecoration(
-                                            hintText: 'Email',
-                                            prefixIcon:
-                                            const Icon(Icons.mail_outline),
-                                            filled: true,
-                                            fillColor:
-                                            Colors.white.withOpacity(0.95),
-                                            contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                vertical: 18.0,
-                                                horizontal: 16.0),
-                                            border: OutlineInputBorder(
-                                              borderRadius:
-                                              BorderRadius.circular(28.0),
-                                              borderSide: BorderSide.none,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 14),
-                                        TextFormField(
-                                          controller: _passCtl,
-                                          obscureText: _obscure,
-                                          validator: (v) => (v == null ||
-                                              v.isEmpty)
-                                              ? 'Please enter password'
-                                              : null,
-                                          decoration: InputDecoration(
-                                            hintText: 'Password',
-                                            prefixIcon:
-                                            const Icon(Icons.lock_outline),
-                                            suffixIcon: IconButton(
-                                              icon: Icon(_obscure
-                                                  ? Icons.visibility_off
-                                                  : Icons.visibility),
-                                              onPressed: () => setState(
-                                                      () => _obscure = !_obscure),
-                                            ),
-                                            filled: true,
-                                            fillColor:
-                                            Colors.white.withOpacity(0.95),
-                                            contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                vertical: 18.0,
-                                                horizontal: 16.0),
-                                            border: OutlineInputBorder(
-                                              borderRadius:
-                                              BorderRadius.circular(28.0),
-                                              borderSide: BorderSide.none,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Row(
-                                          children: [
-                                            const Spacer(),
-                                            MouseRegion(
-                                              cursor: SystemMouseCursors.click,
-                                              onEnter: (_) => setState(
-                                                      () => _forgotHovered = true),
-                                              onExit: (_) => setState(
-                                                      () => _forgotHovered = false),
-                                              child: GestureDetector(
-                                                behavior:
-                                                HitTestBehavior.opaque,
-                                                onTapDown: (_) => setState(() =>
-                                                _forgotPressed = true),
-                                                onTapUp: (_) => setState(() {
-                                                  _forgotPressed = false;
-                                                  Navigator.of(context).push(
-                                                      MaterialPageRoute(
-                                                          builder: (_) =>
-                                                              FpScreen()));
-                                                }),
-                                                onTapCancel: () => setState(() =>
-                                                _forgotPressed = false),
-                                                child: AnimatedDefaultTextStyle(
-                                                  duration: const Duration(
-                                                      milliseconds: 140),
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: _forgotPressed
-                                                        ? _linkPressedColor
-                                                        : (_forgotHovered
-                                                        ? _linkColor
-                                                        : _secondaryTextColor),
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                  child: const Text(
-                                                      'Forgot Password?'),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 20),
-                                        _buildAnimatedButton(),
-                                      ],
+                              constraints:
+                              const BoxConstraints(maxWidth: 420),
+                              child: Form(
+                                key: _formKey,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Email
+                                    TextFormField(
+                                      controller: _emailCtl,
+                                      keyboardType:
+                                      TextInputType.emailAddress,
+                                      validator: (v) =>
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'Please enter email'
+                                          : null,
+                                      decoration: _inputDecoration(
+                                          'Email', Icons.mail_outline),
                                     ),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        "Don't have an account? ",
-                                        style: TextStyle(
-                                            color: _secondaryTextColor,
-                                            fontSize: 14),
+                                    const SizedBox(height: 14),
+
+                                    // Password
+                                    TextFormField(
+                                      controller: _passCtl,
+                                      obscureText: _obscure,
+                                      validator: (v) =>
+                                      (v == null || v.isEmpty)
+                                          ? 'Please enter password'
+                                          : null,
+                                      decoration: _inputDecoration(
+                                        'Password',
+                                        Icons.lock_outline,
+                                        suffix: IconButton(
+                                          icon: Icon(_obscure
+                                              ? Icons.visibility_off
+                                              : Icons.visibility),
+                                          onPressed: () => setState(
+                                                  () => _obscure = !_obscure),
+                                        ),
                                       ),
-                                      MouseRegion(
-                                        cursor: SystemMouseCursors.click,
-                                        onEnter: (_) => setState(
-                                                () => _registerHovered = true),
-                                        onExit: (_) => setState(
-                                                () => _registerHovered = false),
-                                        child: GestureDetector(
-                                          behavior: HitTestBehavior.opaque,
-                                          onTapDown: (_) => setState(
-                                                  () => _registerPressed = true),
-                                          onTapUp: (_) => setState(() {
-                                            _registerPressed = false;
-                                            Navigator.of(context).push(
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    // Forgot password
+                                    Row(
+                                      children: [
+                                        const Spacer(),
+                                        MouseRegion(
+                                          cursor: SystemMouseCursors.click,
+                                          onEnter: (_) => setState(
+                                                  () => _forgotHovered = true),
+                                          onExit: (_) => setState(
+                                                  () => _forgotHovered = false),
+                                          child: GestureDetector(
+                                            behavior:
+                                            HitTestBehavior.opaque,
+                                            onTapDown: (_) => setState(
+                                                    () => _forgotPressed = true),
+                                            onTapUp: (_) => setState(() {
+                                              _forgotPressed = false;
+                                              Navigator.of(context).push(
                                                 MaterialPageRoute(
                                                     builder: (_) =>
-                                                    const RegisterScreen()));
-                                          }),
-                                          onTapCancel: () => setState(
-                                                  () => _registerPressed = false),
-                                          child: AnimatedDefaultTextStyle(
-                                            duration: const Duration(
-                                                milliseconds: 140),
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: _registerPressed
-                                                  ? _linkPressedColor
-                                                  : (_registerHovered
-                                                  ? _linkColor
-                                                  : _linkColor),
-                                              decoration:
-                                              TextDecoration.underline,
-                                              fontWeight: FontWeight.w600,
+                                                        FpScreen()),
+                                              );
+                                            }),
+                                            onTapCancel: () => setState(
+                                                    () =>
+                                                _forgotPressed = false),
+                                            child: AnimatedDefaultTextStyle(
+                                              duration: const Duration(
+                                                  milliseconds: 140),
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: _forgotPressed
+                                                    ? _linkPressedColor
+                                                    : (_forgotHovered
+                                                    ? _linkColor
+                                                    : _secondaryTextColor),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                              child: const Text(
+                                                  'Forgot Password?'),
                                             ),
-                                            child: const Text('Register Now'),
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                      ],
+                                    ),
+                                    const SizedBox(height: 20),
+
+                                    // Login button
+                                    _buildLoginButton(),
+                                    const SizedBox(height: 20),
+
+                                    // Register row
+                                    Row(
+                                      mainAxisAlignment:
+                                      MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          "Don't have an account? ",
+                                          style: TextStyle(
+                                              color: _secondaryTextColor,
+                                              fontSize: 14),
+                                        ),
+                                        MouseRegion(
+                                          cursor: SystemMouseCursors.click,
+                                          onEnter: (_) => setState(() =>
+                                          _registerHovered = true),
+                                          onExit: (_) => setState(() =>
+                                          _registerHovered = false),
+                                          child: GestureDetector(
+                                            behavior:
+                                            HitTestBehavior.opaque,
+                                            onTapDown: (_) => setState(() =>
+                                            _registerPressed = true),
+                                            onTapUp: (_) => setState(() {
+                                              _registerPressed = false;
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                    builder: (_) =>
+                                                    const RegisterScreen()),
+                                              );
+                                            }),
+                                            onTapCancel: () => setState(() =>
+                                            _registerPressed = false),
+                                            child: AnimatedDefaultTextStyle(
+                                              duration: const Duration(
+                                                  milliseconds: 140),
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: _registerPressed
+                                                    ? _linkPressedColor
+                                                    : _linkColor,
+                                                decoration:
+                                                TextDecoration.underline,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                              child:
+                                              const Text('Register Now'),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 32),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                          const Spacer(flex: 3),
-                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
@@ -350,11 +356,9 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildAnimatedButton() {
+  Widget _buildLoginButton() {
     final double scale = _loginPressed ? 0.98 : (_loginHovered ? 1.02 : 1.0);
     final double elevation = _loginPressed ? 2 : (_loginHovered ? 10 : 6);
-    final Duration animDur = const Duration(milliseconds: 140);
-    final bool disabled = _isBusy;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -365,39 +369,41 @@ class _LoginScreenState extends State<LoginScreen> {
       }),
       child: GestureDetector(
         onTapDown: (_) {
-          if (!disabled) setState(() => _loginPressed = true);
+          if (!_isBusy) setState(() => _loginPressed = true);
         },
         onTapUp: (_) {
-          if (!disabled) {
+          if (!_isBusy) {
             setState(() => _loginPressed = false);
             _submit();
           }
         },
         onTapCancel: () => setState(() => _loginPressed = false),
         child: AnimatedContainer(
-          duration: animDur,
+          duration: const Duration(milliseconds: 140),
           transform: Matrix4.identity()..scale(scale),
           curve: Curves.easeOut,
           height: 52,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: disabled ? Colors.blue.shade200 : const Color(0xFF1957A8),
+            color:
+            _isBusy ? Colors.blue.shade200 : const Color(0xFF1957A8),
             borderRadius: BorderRadius.circular(28.0),
             boxShadow: [
               BoxShadow(
                 color: Colors.black26,
-                blurRadius: elevation.toDouble(),
+                blurRadius: elevation,
                 offset: Offset(0, elevation / 2),
-              )
+              ),
             ],
           ),
           alignment: Alignment.center,
           child: _isBusy
               ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white))
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: Colors.white),
+          )
               : const Text(
             'Login',
             style: TextStyle(

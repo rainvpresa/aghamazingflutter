@@ -270,7 +270,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // UPDATE: Password reset via Firebase
   Future<void> _showResetPasswordDialog() async {
     final user = _auth.currentUser;
     if (user == null || user.email == null) {
@@ -304,19 +303,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (shouldSend == true) {
-      try {
-        await _auth.sendPasswordResetEmail(email: user.email!);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password reset link sent! Check your email.'),
-            backgroundColor: Colors.green,
-          ),
+      final result = await AuthService().sendPasswordResetEmail(
+        email: user.email!,
+      );
+
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        // Success modal
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.mark_email_read_outlined,
+                    size: 64,
+                    color: Color(0xFF57BF0F),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Email Sent!',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    result['message'],
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.black54,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF57BF0F),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Got it',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         );
-      } catch (e) {
-        if (!mounted) return;
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text(result['message'] ?? 'Something went wrong')),
         );
       }
     }
