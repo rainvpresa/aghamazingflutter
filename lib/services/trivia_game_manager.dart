@@ -1,108 +1,62 @@
-import 'package:flutter/foundation.dart';
-import 'userprofile_service.dart'; // Import your service
+import 'trivia_service.dart';
 
-class TriviaGameManager extends ChangeNotifier {
-  static final TriviaGameManager instance = TriviaGameManager._();
+class TriviaGameManager {
   TriviaGameManager._();
+  static final TriviaGameManager instance = TriviaGameManager._();
 
-  final UserProfileService _profileService = UserProfileService();
-
-  int _wrongAnswers = 0;
+  List<TriviaQuestion> _questions = [];
+  int _currentIndex = 0;
   int _correctAnswers = 0;
-  int _totalQuestions = 3;
-  bool _gameInProgress = false;
+  int _wrongAnswers = 0;
 
-  int get wrongAnswers => _wrongAnswers;
+  List<TriviaQuestion> get questions => _questions;
+  int get currentIndex => _currentIndex;
+  TriviaQuestion? get currentQuestion =>
+      _questions.isEmpty ? null : _questions[_currentIndex];
+  bool get hasMore => _currentIndex < _questions.length - 1;
   int get correctAnswers => _correctAnswers;
-  int get totalQuestions => _totalQuestions;
-  bool get gameInProgress => _gameInProgress;
+  int get wrongAnswers => _wrongAnswers;
 
-  // Calculate gems (points): 100 - (wrongAnswers × 20), minimum 0
+  Future<void> loadAndStart({int count = 10}) async {
+    _questions = await TriviaService.instance.getRandomQuestions(count: count);
+    _currentIndex = 0;
+    _correctAnswers = 0;
+    _wrongAnswers = 0;
+  }
+
+  void nextQuestion() {
+    if (hasMore) _currentIndex++;
+  }
+
+  void recordCorrectAnswer() => _correctAnswers++;
+  void recordWrongAnswer() => _wrongAnswers++;
+
+  bool isPerfectGame() =>
+      _questions.isNotEmpty && _correctAnswers == _questions.length;
+
+  /// 1 gem per correct answer, bonus 5 if perfect
   int calculateGems() {
-    final gems = 100 - (_wrongAnswers * 20);
-    return gems < 0 ? 0 : gems;
+    final base = _correctAnswers;
+    final bonus = isPerfectGame() ? 5 : 0;
+    return base + bonus;
   }
 
-  // Calculate coins: 10 base + 5 bonus for perfect game
+  /// 10 coins per correct answer, bonus 50 if perfect
   int calculateCoins() {
-    int baseCoins = 10; // Base reward for completing
-    if (_wrongAnswers == 0) {
-      baseCoins += 5; // Perfect game bonus
-    }
-    return baseCoins;
+    final base = _correctAnswers * 10;
+    final bonus = isPerfectGame() ? 50 : 0;
+    return base + bonus;
   }
 
-  // Check if perfect game (all 3 correct)
-  bool isPerfectGame() => _wrongAnswers == 0;
-
-  // Start new game
-  void startGame() {
-    _wrongAnswers = 0;
-    _correctAnswers = 0;
-    _gameInProgress = true;
-    notifyListeners();
-  }
-
-  // Record correct answer
-  void recordCorrectAnswer() {
-    if (_gameInProgress) {
-      _correctAnswers++;
-      notifyListeners();
-    }
-  }
-
-  // Record wrong answer
-  void recordWrongAnswer() {
-    if (_gameInProgress) {
-      _wrongAnswers++;
-      notifyListeners();
-    }
-  }
-
-  // End game and save rewards to Firebase
-  Future<bool> endGameAndSaveRewards() async {
-    if (!_gameInProgress) return false;
-
-    _gameInProgress = false;
-    notifyListeners();
-
-    final coins = calculateCoins();
-    final gems = calculateGems();
-
-    try {
-      // Save coins (bubble power)
-      await _profileService.addCoins(
-        amount: coins,
-        reason: isPerfectGame()
-            ? 'Perfect trivia game! 🎉'
-            : 'Trivia game completed',
-      );
-
-      // Save gems (points/totalScore) for leaderboard
-      await _profileService.updateGameStats(
-        gamesPlayed: 1,
-        gamesWon: isPerfectGame() ? 1 : 0,
-        totalScore: gems,
-      );
-
-      return true;
-    } catch (e) {
-      debugPrint('Error saving game rewards: $e');
-      return false;
-    }
-  }
-
-  // Simple end game without saving (if you need it)
   void endGame() {
-    _gameInProgress = false;
-    notifyListeners();
+    // Keep stats readable by YouWonScreen before reset is called
+    // Reset is called manually via reset() when playing again
   }
 
-  // Reset for new game
   void reset() {
-    _wrongAnswers = 0;
+    _questions = [];
+    _currentIndex = 0;
     _correctAnswers = 0;
-    _gameInProgress = false;
-    notifyListeners();
+    _wrongAnswers = 0;
   }
 }

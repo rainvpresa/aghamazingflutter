@@ -34,7 +34,8 @@ class _TriviaButtonState extends State<TriviaButton>
       duration: const Duration(milliseconds: 150),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(_controller);
+    _scaleAnimation =
+        Tween<double>(begin: 1.0, end: 0.95).animate(_controller);
   }
 
   @override
@@ -95,21 +96,33 @@ class _TriviaButtonState extends State<TriviaButton>
             ],
           ),
           child: Center(
-            child: Text(
-              widget.text,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: widget.width * 0.085,
-                fontWeight: FontWeight.bold,
-                shadows: [
-                  Shadow(
-                    color: Colors.black.withOpacity(0.7),
-                    offset: const Offset(2, 2),
-                    blurRadius: 3,
+            child: LayoutBuilder(
+              // LayoutBuilder gives us the REAL rendered width at runtime,
+              // so font size is always a finite, sensible number even when
+              // the parent passes double.infinity as width.
+              builder: (context, constraints) {
+                final fontSize =
+                (constraints.maxWidth * 0.075).clamp(13.0, 20.0);
+                return Text(
+                  widget.text,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: fontSize,
+                    fontFamily: 'LilitaOne',
+                    fontWeight: FontWeight.w400,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.7),
+                        offset: const Offset(2, 2),
+                        blurRadius: 3,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ),

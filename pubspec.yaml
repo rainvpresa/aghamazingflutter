@@ -34,6 +34,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  fonts:
+    - family: LilitaOne
+      fonts:
+        - asset: assets/fonts/LilitaOne-Regular.ttf
   assets:
     - assets/images/pngs/
     - assets/images/backgrounds/
