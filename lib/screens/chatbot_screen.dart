@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/userprofile_service.dart';
+import '../services/faq_service.dart'; // ← ADD THIS IMPORT
 
 // ─────────────────────────────────────────────
 //  DOST-STII BRAND COLORS
@@ -15,8 +16,6 @@ const kGrey = Color(0xFFF4F6FA);
 
 // ─────────────────────────────────────────────
 //  RESPONSIVE LAYOUT HELPER
-//  Usage: _Layout.of(context).sp(14)  → scaled font
-//         _Layout.of(context).r(16)   → scaled radius/padding
 // ─────────────────────────────────────────────
 class _Layout {
   final double screenWidth;
@@ -29,22 +28,15 @@ class _Layout {
     return _Layout(screenWidth: size.width, screenHeight: size.height);
   }
 
-  /// Scales a value relative to a 360dp baseline width.
   double r(double value) => value * (screenWidth / 360);
 
-  /// Scales font size with a gentler curve (±20% cap) so text never gets huge.
   double sp(double value) {
     final scale = (screenWidth / 360).clamp(0.8, 1.4);
     return value * scale;
   }
 
-  /// Grid columns: 3 for portrait, 5 for wide landscape.
   int get gridColumns => screenWidth > screenHeight ? 5 : 3;
-
-  /// Horizontal message padding that widens on tablets/landscape.
   double get hPad => r(16).clamp(12.0, 32.0);
-
-  /// Max width for bot/user bubbles so they don't stretch wall-to-wall on wide screens.
   double get bubbleMaxWidth => screenWidth * 0.72;
 }
 
@@ -78,7 +70,8 @@ class FaqItem {
 }
 
 // ─────────────────────────────────────────────
-//  HARDCODED FAQ CONTENT  (DOST-STII)
+//  HARDCODED FALLBACK FAQ CONTENT
+//  Used only if Firestore fetch fails
 // ─────────────────────────────────────────────
 final List<FaqCategory> kFaqCategories = [
   FaqCategory(
@@ -194,8 +187,6 @@ final List<FaqCategory> kFaqCategories = [
 
 // ─────────────────────────────────────────────
 //  RICH TEXT HELPER
-//  Parses **bold** markers in a string into a TextSpan tree.
-//  No external package needed.
 // ─────────────────────────────────────────────
 List<TextSpan> _parseBoldText(String text, TextStyle base) {
   final spans = <TextSpan>[];
@@ -218,7 +209,6 @@ List<TextSpan> _parseBoldText(String text, TextStyle base) {
   return spans;
 }
 
-/// Drop-in replacement for Text that renders **bold** markers correctly.
 class _RichText extends StatelessWidget {
   final String text;
   final TextStyle style;
@@ -270,13 +260,28 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   final List<ChatMessage> _messages = [];
   bool _isTyping = false;
 
+  // ── FAQ state ──────────────────────────────
+  List<FaqCategory> _faqCategories = [];
+  bool _isLoadingFaq = true;
+
   static const String _mapsUrl =
       'https://www.google.com/maps/search/?api=1&query=DOST-STII+Bicutan+Taguig';
   static const String _stiiWebsiteUrl = 'https://www.stii.dost.gov.ph';
 
+  // ── Single initState ───────────────────────
   @override
   void initState() {
     super.initState();
+    _initFaq();
+  }
+
+  Future<void> _initFaq() async {
+    final categories = await FaqService.instance.getCategories();
+    if (!mounted) return;
+    setState(() {
+      _faqCategories = categories;
+      _isLoadingFaq = false;
+    });
     _addWelcomeMessages();
   }
 
@@ -341,7 +346,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         if (!mounted) return;
         setState(() {
           _isTyping = false;
-          // NOTE: **bold** markers are now rendered correctly via _RichText
           _messages.add(ChatMessage(
             text:
             "Here are some common questions about **${category.label}**. Tap one to get an answer:",
@@ -654,12 +658,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Bot avatar
           Container(
             width: layout.r(32),
             height: layout.r(32),
-            margin:
-            EdgeInsets.only(right: layout.r(8), top: layout.r(2)),
+            margin: EdgeInsets.only(right: layout.r(8), top: layout.r(2)),
             decoration: BoxDecoration(
               color: kYaleBlue,
               shape: BoxShape.circle,
@@ -673,7 +675,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             child: Icon(Icons.support_agent_rounded,
                 color: kWhite, size: layout.r(18)),
           ),
-          // Bubble — Flexible so it never overflows on wide screens
           Flexible(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: layout.bubbleMaxWidth),
@@ -695,7 +696,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                         offset: const Offset(0, 3))
                   ],
                 ),
-                // ← _RichText parses **bold** correctly instead of showing asterisks
                 child: _RichText(
                   text,
                   style: TextStyle(
@@ -727,15 +727,18 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                   fontWeight: FontWeight.w500),
             ),
           ),
-          GridView.count(
+          _isLoadingFaq
+              ? const Center(child: CircularProgressIndicator())
+              : GridView.count(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: layout.gridColumns,
             mainAxisSpacing: layout.r(10),
             crossAxisSpacing: layout.r(10),
             childAspectRatio: 1.1,
-            children:
-            kFaqCategories.map((cat) => _buildCategoryCard(cat, layout)).toList(),
+            children: _faqCategories
+                .map((cat) => _buildCategoryCard(cat, layout))
+                .toList(),
           ),
         ],
       ),
@@ -963,7 +966,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 }
 
 // ─────────────────────────────────────────────
-//  FEEDBACK MODAL  (saves to Firebase Firestore)
+//  FEEDBACK MODAL
 // ─────────────────────────────────────────────
 class _FeedbackModal extends StatefulWidget {
   final String username;
@@ -1058,8 +1061,7 @@ class _FeedbackModalState extends State<_FeedbackModal> {
         Text(
           'Your response has been recorded and will help us improve our services.',
           textAlign: TextAlign.center,
-          style:
-          TextStyle(fontSize: layout.sp(13), color: Colors.grey),
+          style: TextStyle(fontSize: layout.sp(13), color: Colors.grey),
         ),
         SizedBox(height: layout.r(24)),
         SizedBox(
@@ -1075,8 +1077,7 @@ class _FeedbackModalState extends State<_FeedbackModal> {
             onPressed: () => Navigator.of(context).pop(),
             child: Text('Close',
                 style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: layout.sp(14))),
+                    fontWeight: FontWeight.w600, fontSize: layout.sp(14))),
           ),
         ),
       ],
@@ -1088,7 +1089,6 @@ class _FeedbackModalState extends State<_FeedbackModal> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Handle bar
         Center(
           child: Container(
             width: layout.r(40),
@@ -1100,7 +1100,6 @@ class _FeedbackModalState extends State<_FeedbackModal> {
           ),
         ),
         SizedBox(height: layout.r(20)),
-        // Header
         Row(
           children: [
             Container(
@@ -1127,8 +1126,8 @@ class _FeedbackModalState extends State<_FeedbackModal> {
                   ),
                   Text(
                     'Help us improve DOST-STII\'s chatbot',
-                    style: TextStyle(
-                        fontSize: layout.sp(12), color: Colors.grey),
+                    style:
+                    TextStyle(fontSize: layout.sp(12), color: Colors.grey),
                   ),
                 ],
               ),
@@ -1136,8 +1135,6 @@ class _FeedbackModalState extends State<_FeedbackModal> {
           ],
         ),
         SizedBox(height: layout.r(24)),
-
-        // Star rating
         Text(
           'How would you rate your experience?',
           style: TextStyle(
@@ -1177,10 +1174,7 @@ class _FeedbackModalState extends State<_FeedbackModal> {
                   color: const Color(0xFFF59E0B)),
             ),
           ),
-
         SizedBox(height: layout.r(20)),
-
-        // Text feedback
         Text(
           'Additional comments (optional)',
           style: TextStyle(
@@ -1196,8 +1190,8 @@ class _FeedbackModalState extends State<_FeedbackModal> {
           style: TextStyle(fontSize: layout.sp(14), color: kEerieBlack),
           decoration: InputDecoration(
             hintText: 'Tell us about your experience...',
-            hintStyle:
-            TextStyle(color: Colors.grey.shade400, fontSize: layout.sp(14)),
+            hintStyle: TextStyle(
+                color: Colors.grey.shade400, fontSize: layout.sp(14)),
             filled: true,
             fillColor: kGrey,
             contentPadding: EdgeInsets.all(layout.r(14)),
@@ -1205,14 +1199,11 @@ class _FeedbackModalState extends State<_FeedbackModal> {
               borderRadius: BorderRadius.circular(layout.r(14)),
               borderSide: BorderSide.none,
             ),
-            counterStyle:
-            TextStyle(fontSize: layout.sp(11), color: Colors.grey.shade400),
+            counterStyle: TextStyle(
+                fontSize: layout.sp(11), color: Colors.grey.shade400),
           ),
         ),
-
         SizedBox(height: layout.r(8)),
-
-        // Submit button
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
