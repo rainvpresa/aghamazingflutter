@@ -448,7 +448,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
 
   Future<void> _saveScore() async {
     try {
-      await UserProfileService().updateNumberMatchScore(_score);
+      await UserProfileService().saveNumberMatchRewards(_score);
     } catch (e) {
       debugPrint('Error saving score: $e');
     }
@@ -1372,8 +1372,27 @@ class SlideResult {
 enum SwipeDirection { up, down, left, right }
 enum GameState { menu, playing, gameOver }
 
+// Replace the extension at the bottom
 extension NumberMatchScore on UserProfileService {
-  Future<void> updateNumberMatchScore(int score) async {
-    debugPrint('Number Match Score: $score');
+  Future<void> saveNumberMatchRewards(int score) async {
+    try {
+      // Coins: 1 coin per 10 points
+      final coinsEarned = (score / 10).floor().clamp(0, 999);
+
+      await addCoins(
+        amount: coinsEarned,
+        reason: 'Number Match Score: $score',
+      );
+
+      await updateGameStats(
+        gamesPlayed: 1,
+        gamesWon: 1,
+        totalScore: score,
+      );
+
+      debugPrint('✅ Number Match saved: $score pts, $coinsEarned coins');
+    } catch (e) {
+      debugPrint('❌ Error saving Number Match rewards: $e');
+    }
   }
 }

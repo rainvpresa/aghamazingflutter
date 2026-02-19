@@ -509,6 +509,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                       rank: index + 1,
                                       displayName: player['displayName'] ?? 'Anonymous',
                                       score: player['totalScore'] ?? 0,
+                                      avatarPath: player['avatarPath'] ?? '',   // ← add this
                                       itemBgAsset: asset('leaderboard_item_bg'),
                                       rankBadgeAsset: asset('rank_${index + 1}_badge'),
                                       rankLabelAsset: asset('rank_${index + 1}_label'),
@@ -763,6 +764,7 @@ class _LeaderboardItem extends StatelessWidget {
   final int rank;
   final String displayName;
   final int score;
+  final String avatarPath;   // ← add this
   final String itemBgAsset;
   final String rankBadgeAsset;
   final String rankLabelAsset;
@@ -772,6 +774,7 @@ class _LeaderboardItem extends StatelessWidget {
     required this.rank,
     required this.displayName,
     required this.score,
+    required this.avatarPath,
     required this.itemBgAsset,
     required this.rankBadgeAsset,
     required this.rankLabelAsset,
@@ -822,7 +825,6 @@ class _LeaderboardItem extends StatelessWidget {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: _getRankColor(rank),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
@@ -832,13 +834,38 @@ class _LeaderboardItem extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Center(
-                  child: Text(
-                    '#$rank',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 32,
+                child: ClipOval(
+                  child: avatarPath.isNotEmpty
+                      ? Image.asset(
+                    avatarPath,
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: _getRankColor(rank),
+                      child: Center(
+                        child: Text(
+                          '#$rank',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 32,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                      : Container(
+                    color: _getRankColor(rank),
+                    child: Center(
+                      child: Text(
+                        '#$rank',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 32,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -1012,6 +1039,24 @@ class _LeaderboardItem extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModalFallbackAvatar() {
+    return Container(
+      width: 80,
+      height: 80,
+      color: _getRankColor(rank),
+      child: Center(
+        child: Text(
+          '#$rank',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 32,
+          ),
         ),
       ),
     );

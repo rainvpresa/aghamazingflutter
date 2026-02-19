@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import 'energy_manager.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -316,13 +317,16 @@ class AuthService {
         'email': email,
         'displayName': displayName,
         'coins': 0,
-        'energy': 100,
+        'energy': 100,         // Added initial energy
         'totalScore': 0,      // Initialize for leaderboard query
         'gamesPlayed': 0,     // Initialize for stats
         'gamesWon': 0,        // Initialize for stats
         'createdAt': FieldValue.serverTimestamp(),
         'lastLogin': FieldValue.serverTimestamp(),
       });
+
+      // Reset local energy manager so the new account starts with 100 energy
+      await EnergyManager.instance.resetEnergy();
 
       debugPrint('✅ User profile created successfully in Firestore!');
     } catch (e) {

@@ -365,7 +365,7 @@ class UserProfileService {
         return {
           'userId': doc.id,
           'displayName': data['displayName'] ?? 'Anonymous',
-          'profileImageUrl': data['profileImageUrl'],
+          'avatarPath': data['avatarPath'] ?? '',   // ← add this
           'totalScore': data['totalScore'] ?? 0,
           'gamesPlayed': data['gamesPlayed'] ?? 0,
           'gamesWon': data['gamesWon'] ?? 0,

@@ -567,12 +567,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           ),
         ],
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.more_vert_rounded),
-          onPressed: () {},
-        ),
-      ],
+      actions: const [],
     );
   }
 
