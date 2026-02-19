@@ -8,6 +8,7 @@ import '../../services/energy_manager.dart';
 import 'trivia_game1/main_trivia_screen.dart';
 import 'number match/number_match_game_screen.dart';
 import 'color game/color_game.dart';
+import 'tictactoe_screen.dart';
 
 class ARScanScreen extends StatefulWidget {
   const ARScanScreen({super.key});
@@ -36,6 +37,10 @@ class _ARScanScreenState extends State<ARScanScreen> with SingleTickerProviderSt
     GameRoute(
       name: 'Color Puzzle',
       route: (_) => const ColorPuzzleGame(),
+    ),
+    GameRoute(
+      name: 'Tic Tac Toe',
+      route: (_) => const TicTacToeStartScreen(),
     ),
   ];
 

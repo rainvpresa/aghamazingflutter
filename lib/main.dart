@@ -11,6 +11,7 @@ import 'screens/profile_screen.dart';
 import 'screens/mainmenu_screen.dart';
 import 'screens/trivia_game1/main_trivia_screen.dart';
 import 'screens/gemgrab/gem_grab_game_screen.dart';
+import 'screens/tictactoe_screen.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -42,7 +43,6 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
-        fontFamily: 'LilitaOne',
       ),
       // Use AuthWrapper to check authentication state
       home: const AuthWrapper(),
@@ -54,6 +54,7 @@ class MyApp extends StatelessWidget {
         '/profile': (_) => const ProfileScreen(),
         '/trivia': (_) => const MainTriviaScreen(),
         '/gemgrab': (_) => const GemGrabGameScreen(),  // ADD THIS LINE
+        '/tictactoe': (_) => const TicTacToeStartScreen(),
       },
     );
   }
