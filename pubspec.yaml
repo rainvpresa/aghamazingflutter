@@ -30,6 +30,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
@@ -38,6 +39,7 @@ flutter:
     - family: LilitaOne
       fonts:
         - asset: assets/fonts/LilitaOne-Regular.ttf
+
   assets:
     - assets/images/pngs/
     - assets/images/backgrounds/
@@ -45,3 +47,7 @@ flutter:
     - assets/animations/
     - assets/config/
     - assets/images/jpgs/
+
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/images/pngs/aghamazing_icon.png"

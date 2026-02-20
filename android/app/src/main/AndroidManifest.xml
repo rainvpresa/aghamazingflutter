@@ -10,7 +10,7 @@
     <uses-feature android:name="android.hardware.telephony" android:required="false"/>
 
     <application
-        android:label="aghamazing1"
+        android:label="AGHAMazing Quest"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

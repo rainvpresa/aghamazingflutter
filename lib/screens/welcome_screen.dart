@@ -22,60 +22,78 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SizedBox.expand(
-        child: Stack(
-          children: [
-            // Background image
-            Positioned.fill(
-              child: Image.asset(
-                _bg,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stack) =>
-                    Container(color: Colors.grey.shade200),
-              ),
-            ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isLandscape = constraints.maxWidth > constraints.maxHeight;
+          final shortSide = isLandscape ? constraints.maxHeight : constraints.maxWidth;
 
-            // Centered button
-            Center(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).size.height * 0.2,
+          // Scale button size relative to the short side of the screen
+          final buttonWidth = shortSide * 0.38;
+          final buttonHeight = shortSide * 0.15;
+          final buttonFontSize = shortSide * 0.042;
+          final buttonRadius = buttonHeight / 2;
+
+          // In portrait, push button ~65% down. In landscape, ~60% down.
+          final topFraction = isLandscape ? 0.55 : 0.65;
+
+          return SizedBox.expand(
+            child: Stack(
+              children: [
+                // Background image
+                Positioned.fill(
+                  child: Image.asset(
+                    _bg,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stack) =>
+                        Container(color: Colors.grey.shade200),
+                  ),
                 ),
-                child: SizedBox(
-                  width: 160,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1866B2),
-                      elevation: 4,
-                      shadowColor: Colors.black45,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 14,
-                        horizontal: 20,
-                      ),
-                    ),
-                    child: const Text(
-                      'Start',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+
+                // Button positioned proportionally
+                Positioned(
+                  top: constraints.maxHeight * topFraction,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: SizedBox(
+                      width: buttonWidth,
+                      height: buttonHeight,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => const LoginScreen(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1866B2),
+                          elevation: 4,
+                          shadowColor: Colors.black45,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(buttonRadius),
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            vertical: buttonHeight * 0.25,
+                            horizontal: buttonWidth * 0.12,
+                          ),
+                        ),
+                        child: Text(
+                          'Start',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: buttonFontSize,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

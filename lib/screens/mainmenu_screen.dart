@@ -465,383 +465,397 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                             color: const Color(0xFF6C5CE7).withOpacity(0.4),
                                             blurRadius: 8,
                                             spreadRadius: 2,
-                                          ),
-                                        ],
-                                      ),
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          onTap: _loadLeaderboard,
-                                          borderRadius: BorderRadius.circular(12),
-                                          child: Icon(
-                                            Icons.refresh,
-                                            color: Colors.white,
-                                            size: screenW * 0.065,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            onTap: _loadLeaderboard,
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Icon(
+                                              Icons.refresh,
+                                              color: Colors.white,
+                                              size: screenW * 0.065,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Expanded(
-                                child: _isLoadingLeaderboard
-                                    ? const Center(
-                                  child: CircularProgressIndicator(color: Colors.amber),
-                                )
-                                    : _leaderboardData.isEmpty
-                                    ? Center(
-                                  child: Text(
-                                    'No players yet!\nBe the first to play!',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: screenW * 0.035,
-                                    ),
+                                    ],
                                   ),
-                                )
-                                    : ListView.builder(
-                                  padding: EdgeInsets.zero,
-                                  itemCount: _leaderboardData.length,
-                                  itemBuilder: (context, index) {
-                                    final player = _leaderboardData[index];
-                                    return _LeaderboardItem(
-                                      rank: index + 1,
-                                      displayName: player['displayName'] ?? 'Anonymous',
-                                      score: player['totalScore'] ?? 0,
-                                      avatarPath: player['avatarPath'] ?? '',   // ← add this
-                                      itemBgAsset: asset('leaderboard_item_bg'),
-                                      rankBadgeAsset: asset('rank_${index + 1}_badge'),
-                                      rankLabelAsset: asset('rank_${index + 1}_label'),
-                                      screenWidth: screenW,
-                                    );
-                                  },
                                 ),
-                              ),
-                            ],
+                                Expanded(
+                                  child: _isLoadingLeaderboard
+                                      ? const Center(
+                                    child: CircularProgressIndicator(color: Colors.amber),
+                                  )
+                                      : _leaderboardData.isEmpty
+                                      ? Center(
+                                    child: Text(
+                                      'No players yet!\nBe the first to play!',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: screenW * 0.035,
+                                      ),
+                                    ),
+                                  )
+                                      : ListView.builder(
+                                    padding: EdgeInsets.zero,
+                                    itemCount: _leaderboardData.length,
+                                    itemBuilder: (context, index) {
+                                      final player = _leaderboardData[index];
+                                      return _LeaderboardItem(
+                                        rank: index + 1,
+                                        displayName: player['displayName'] ?? 'Anonymous',
+                                        score: player['totalScore'] ?? 0,
+                                        avatarPath: player['avatarPath'] ?? '',   // ← add this
+                                        itemBgAsset: asset('leaderboard_item_bg'),
+                                        rankBadgeAsset: asset('rank_${index + 1}_badge'),
+                                        rankLabelAsset: asset('rank_${index + 1}_label'),
+                                        screenWidth: screenW,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
 
-                    // ── Gem Grab button ────────────────────────────
-                    SizedBox(
-                      height: constraints.maxHeight * l.gemGrabFraction,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: screenW * 0.015),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(maxWidth: screenW * 0.60),
-                            child: AspectRatio(
-                              aspectRatio: 983 / 278,
-                              child: asset('btn_gem_grab').isNotEmpty
-                                  ? ImageAssetButton(
-                                assetPath: asset('btn_gem_grab'),
-                                width: double.infinity,
-                                height: double.infinity,
-                                fill: true,
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const GemGrabGameScreen(),
+                      // ── Gem Grab button ────────────────────────────
+                      SizedBox(
+                        height: constraints.maxHeight * l.gemGrabFraction,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: screenW * 0.015),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(maxWidth: screenW * 0.60),
+                              child: AspectRatio(
+                                aspectRatio: 983 / 278,
+                                child: asset('btn_gem_grab').isNotEmpty
+                                    ? ImageAssetButton(
+                                  assetPath: asset('btn_gem_grab'),
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  fill: true,
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const GemGrabGameScreen(),
+                                    ),
                                   ),
-                                ),
-                                fallbackWidget: const SizedBox.shrink(),
-                              )
-                                  : ElevatedButton(
-                                onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const GemGrabGameScreen(),
+                                  fallbackWidget: const SizedBox.shrink(),
+                                )
+                                    : ElevatedButton(
+                                  onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const GemGrabGameScreen(),
+                                    ),
                                   ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.deepPurple,
+                                    minimumSize: const Size(double.infinity, 48),
+                                  ),
+                                  child: const Text('GEM GRAB'),
                                 ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.deepPurple,
-                                  minimumSize: const Size(double.infinity, 48),
-                                ),
-                                child: const Text('GEM GRAB'),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
 
-                    SizedBox(height: constraints.maxHeight * l.bottomPadFraction),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _energyRegenTimer?.cancel();
-    super.dispose();
-  }
-}
-
-/// IconStatButton: image background with centered value
-class IconStatButton extends StatelessWidget {
-  final String assetPath;
-  final double width;
-  final double height;
-  final String value;
-  final TextStyle? textStyle;
-  final VoidCallback? onTap;
-
-  const IconStatButton({
-    super.key,
-    required this.assetPath,
-    required this.width,
-    required this.height,
-    required this.value,
-    this.textStyle,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Image.asset(
-              assetPath,
-              width: width,
-              height: height,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: width,
-                height: height,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                      SizedBox(height: constraints.maxHeight * l.bottomPadFraction),
+                    ],
+                  );
+                },
               ),
-            ),
-            Text(
-              value,
-              style: textStyle ??
-                  TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: screenWidth * 0.032,
-                  ),
-              textAlign: TextAlign.center,
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Energy display with timer
-class _EnergyDisplay extends StatelessWidget {
-  final String assetPath;
-  final double width;
-  final double height;
-  final int currentEnergy;
-  final int maxEnergy;
-  final int timeLeft;
-  final VoidCallback? onTap;
-
-  const _EnergyDisplay({
-    required this.assetPath,
-    required this.width,
-    required this.height,
-    required this.currentEnergy,
-    required this.maxEnergy,
-    required this.timeLeft,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Image.asset(
-              assetPath,
-              width: width,
-              height: height,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: width,
-                height: height,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-            Text(
-              '$currentEnergy',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: screenWidth * 0.032,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// ImageAssetButton
-class ImageAssetButton extends StatelessWidget {
-  final String assetPath;
-  final VoidCallback onTap;
-  final double? width;
-  final double? height;
-  final Widget? fallbackWidget;
-  final bool fill;
-
-  const ImageAssetButton({
-    super.key,
-    required this.assetPath,
-    required this.onTap,
-    this.width,
-    this.height,
-    this.fallbackWidget,
-    this.fill = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final BoxFit fit = fill ? BoxFit.fill : BoxFit.contain;
-    if (assetPath.isEmpty) {
-      return SizedBox(
-        width: width,
-        height: height,
-        child: Center(
-          child: fallbackWidget ??
-              ElevatedButton(onPressed: onTap, child: const SizedBox()),
         ),
       );
     }
-    return GestureDetector(
-      onTap: onTap,
-      child: Image.asset(
-        assetPath,
-        width: width,
-        height: height,
-        fit: fit,
-        errorBuilder: (ctx, err, st) => SizedBox(
+
+    @override
+    void dispose() {
+      _energyRegenTimer?.cancel();
+      super.dispose();
+    }
+  }
+
+  /// IconStatButton: image background with centered value
+  class IconStatButton extends StatelessWidget {
+    final String assetPath;
+    final double width;
+    final double height;
+    final String value;
+    final TextStyle? textStyle;
+    final VoidCallback? onTap;
+
+    const IconStatButton({
+      super.key,
+      required this.assetPath,
+      required this.width,
+      required this.height,
+      required this.value,
+      this.textStyle,
+      this.onTap,
+    });
+
+    @override
+    Widget build(BuildContext context) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      return GestureDetector(
+        onTap: onTap,
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Image.asset(
+                assetPath,
+                width: width,
+                height: height,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: width,
+                  height: height,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              Text(
+                value,
+                style: textStyle ??
+                    TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: screenWidth * 0.032,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Energy display with timer
+  class _EnergyDisplay extends StatelessWidget {
+    final String assetPath;
+    final double width;
+    final double height;
+    final int currentEnergy;
+    final int maxEnergy;
+    final int timeLeft;
+    final VoidCallback? onTap;
+
+    const _EnergyDisplay({
+      required this.assetPath,
+      required this.width,
+      required this.height,
+      required this.currentEnergy,
+      required this.maxEnergy,
+      required this.timeLeft,
+      this.onTap,
+    });
+
+    @override
+    Widget build(BuildContext context) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      return GestureDetector(
+        onTap: onTap,
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Image.asset(
+                assetPath,
+                width: width,
+                height: height,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: width,
+                  height: height,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              Text(
+                '$currentEnergy',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: screenWidth * 0.032,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  /// ImageAssetButton
+  class ImageAssetButton extends StatelessWidget {
+    final String assetPath;
+    final VoidCallback onTap;
+    final double? width;
+    final double? height;
+    final Widget? fallbackWidget;
+    final bool fill;
+
+    const ImageAssetButton({
+      super.key,
+      required this.assetPath,
+      required this.onTap,
+      this.width,
+      this.height,
+      this.fallbackWidget,
+      this.fill = false,
+    });
+
+    @override
+    Widget build(BuildContext context) {
+      final BoxFit fit = fill ? BoxFit.fill : BoxFit.contain;
+      if (assetPath.isEmpty) {
+        return SizedBox(
           width: width,
           height: height,
           child: Center(
             child: fallbackWidget ??
                 ElevatedButton(onPressed: onTap, child: const SizedBox()),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Leaderboard item
-class _LeaderboardItem extends StatelessWidget {
-  final int rank;
-  final String displayName;
-  final int score;
-  final String avatarPath;   // ← add this
-  final String itemBgAsset;
-  final String rankBadgeAsset;
-  final String rankLabelAsset;
-  final double screenWidth;
-
-  const _LeaderboardItem({
-    required this.rank,
-    required this.displayName,
-    required this.score,
-    required this.avatarPath,
-    required this.itemBgAsset,
-    required this.rankBadgeAsset,
-    required this.rankLabelAsset,
-    required this.screenWidth,
-  });
-
-  Color _getRankColor(int rank) {
-    switch (rank) {
-      case 1: return const Color(0xFFFFC11E);
-      case 2: return const Color(0xFFFE9898);
-      case 3: return const Color(0xFF98FE98);
-      default: return const Color(0xFF98EBFE);
-    }
-  }
-
-  String _getRankTitle(int rank) {
-    switch (rank) {
-      case 1: return 'EPIC';
-      case 2: return 'AWESOME';
-      case 3: return 'GOOD';
-      default: return 'SMARTY';
-    }
-  }
-
-  void _showPlayerModal(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF2a2a3e),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.purple, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.5),
-                blurRadius: 20,
-                spreadRadius: 5,
-              ),
-            ],
+        );
+      }
+      return GestureDetector(
+        onTap: onTap,
+        child: Image.asset(
+          assetPath,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (ctx, err, st) => SizedBox(
+            width: width,
+            height: height,
+            child: Center(
+              child: fallbackWidget ??
+                  ElevatedButton(onPressed: onTap, child: const SizedBox()),
+            ),
           ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: _getRankColor(rank).withOpacity(0.5),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                    ),
-                  ],
+        ),
+      );
+    }
+  }
+
+  /// Leaderboard item
+  class _LeaderboardItem extends StatelessWidget {
+    final int rank;
+    final String displayName;
+    final int score;
+    final String avatarPath;   // ← add this
+    final String itemBgAsset;
+    final String rankBadgeAsset;
+    final String rankLabelAsset;
+    final double screenWidth;
+
+    const _LeaderboardItem({
+      required this.rank,
+      required this.displayName,
+      required this.score,
+      required this.avatarPath,
+      required this.itemBgAsset,
+      required this.rankBadgeAsset,
+      required this.rankLabelAsset,
+      required this.screenWidth,
+    });
+
+    Color _getRankColor(int rank) {
+      switch (rank) {
+        case 1: return const Color(0xFFFFC11E);
+        case 2: return const Color(0xFFFE9898);
+        case 3: return const Color(0xFF98FE98);
+        default: return const Color(0xFF98EBFE);
+      }
+    }
+
+    String _getRankTitle(int rank) {
+      switch (rank) {
+        case 1: return 'EPIC';
+        case 2: return 'AWESOME';
+        case 3: return 'GOOD';
+        default: return 'SMARTY';
+      }
+    }
+
+    void _showPlayerModal(BuildContext context) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF2a2a3e),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.purple, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.5),
+                  blurRadius: 20,
+                  spreadRadius: 5,
                 ),
-                child: ClipOval(
-                  child: avatarPath.isNotEmpty
-                      ? Image.asset(
-                    avatarPath,
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+              ],
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: _getRankColor(rank).withOpacity(0.5),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: avatarPath.isNotEmpty
+                        ? Image.asset(
+                      avatarPath,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: _getRankColor(rank),
+                        child: Center(
+                          child: Text(
+                            '#$rank',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 32,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                        : Container(
                       color: _getRankColor(rank),
                       child: Center(
                         child: Text(
@@ -854,345 +868,320 @@ class _LeaderboardItem extends StatelessWidget {
                         ),
                       ),
                     ),
-                  )
-                      : Container(
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  displayName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '#$rank ${_getRankTitle(rank)}',
+                  style: TextStyle(
                     color: _getRankColor(rank),
-                    child: Center(
-                      child: Text(
-                        '#$rank',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6C5CE7).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF6C5CE7), width: 2),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.diamond, color: Color(0xFF6C5CE7), size: 24),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$score Gems',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: 32,
+                          fontSize: 18,
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6C5CE7),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'CLOSE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
                     ),
                   ),
                 ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    @override
+    Widget build(BuildContext context) {
+      return GestureDetector(
+        onTap: () => _showPlayerModal(context),
+        child: Container(
+          margin: EdgeInsets.symmetric(vertical: screenWidth * 0.01),
+          padding: EdgeInsets.symmetric(
+            horizontal: screenWidth * 0.03,
+            vertical: screenWidth * 0.02,
+          ),
+          decoration: BoxDecoration(
+            image: itemBgAsset.isNotEmpty
+                ? DecorationImage(image: AssetImage(itemBgAsset), fit: BoxFit.fill)
+                : null,
+            color: itemBgAsset.isEmpty ? Colors.black26 : null,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: screenWidth * 0.125,
+                height: screenWidth * 0.125,
+                child: rankBadgeAsset.isNotEmpty
+                    ? Image.asset(
+                  rankBadgeAsset,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => _buildFallbackBadge(),
+                )
+                    : _buildFallbackBadge(),
               ),
-              const SizedBox(height: 16),
-              Text(
-                displayName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '#$rank ${_getRankTitle(rank)}',
-                style: TextStyle(
-                  color: _getRankColor(rank),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6C5CE7).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF6C5CE7), width: 2),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              SizedBox(width: screenWidth * 0.03),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.diamond, color: Color(0xFF6C5CE7), size: 24),
-                    const SizedBox(width: 8),
+                    Row(
+                      children: [
+                        Text(
+                          '#$rank ',
+                          style: TextStyle(
+                            color: _getRankColor(rank),
+                            fontWeight: FontWeight.bold,
+                            fontSize: screenWidth * 0.035,
+                          ),
+                        ),
+                        Text(
+                          _getRankTitle(rank),
+                          style: TextStyle(
+                            color: _getRankColor(rank),
+                            fontWeight: FontWeight.bold,
+                            fontSize: screenWidth * 0.035,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: screenWidth * 0.005),
                     Text(
-                      '$score Gems',
-                      style: const TextStyle(
+                      displayName,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: screenWidth * 0.03,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: screenWidth * 0.02),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: screenWidth * 0.02,
+                  vertical: screenWidth * 0.01,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6C5CE7).withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.diamond, color: const Color(0xFF6C5CE7), size: screenWidth * 0.04),
+                    SizedBox(width: screenWidth * 0.01),
+                    Text(
+                      score.toString(),
+                      style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                        fontSize: screenWidth * 0.035,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6C5CE7),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'CLOSE',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
-      ),
-    );
+      );
+    }
+
+    Widget _buildModalFallbackAvatar() {
+      return Container(
+        width: 80,
+        height: 80,
+        color: _getRankColor(rank),
+        child: Center(
+          child: Text(
+            '#$rank',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 32,
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget _buildFallbackBadge() {
+      return Container(
+        width: screenWidth * 0.125,
+        height: screenWidth * 0.125,
+        decoration: BoxDecoration(
+          color: _getRankColor(rank),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: _getRankColor(rank).withOpacity(0.5),
+              blurRadius: 8,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            '#$rank',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: screenWidth * 0.04,
+            ),
+          ),
+        ),
+      );
+    }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showPlayerModal(context),
-      child: Container(
-        margin: EdgeInsets.symmetric(vertical: screenWidth * 0.01),
-        padding: EdgeInsets.symmetric(
-          horizontal: screenWidth * 0.03,
-          vertical: screenWidth * 0.02,
-        ),
-        decoration: BoxDecoration(
-          image: itemBgAsset.isNotEmpty
-              ? DecorationImage(image: AssetImage(itemBgAsset), fit: BoxFit.fill)
-              : null,
-          color: itemBgAsset.isEmpty ? Colors.black26 : null,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
+  /// Custom styled SnackBar
+  void showStyledSnackBar(BuildContext context, {
+    required String title,
+    required String message,
+    required Color backgroundColor,
+    required IconData icon,
+    Color iconColor = Colors.white,
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
           children: [
-            SizedBox(
-              width: screenWidth * 0.125,
-              height: screenWidth * 0.125,
-              child: rankBadgeAsset.isNotEmpty
-                  ? Image.asset(
-                rankBadgeAsset,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => _buildFallbackBadge(),
-              )
-                  : _buildFallbackBadge(),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: iconColor, size: 24),
             ),
-            SizedBox(width: screenWidth * 0.03),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        '#$rank ',
-                        style: TextStyle(
-                          color: _getRankColor(rank),
-                          fontWeight: FontWeight.bold,
-                          fontSize: screenWidth * 0.035,
-                        ),
-                      ),
-                      Text(
-                        _getRankTitle(rank),
-                        style: TextStyle(
-                          color: _getRankColor(rank),
-                          fontWeight: FontWeight.bold,
-                          fontSize: screenWidth * 0.035,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: screenWidth * 0.005),
-                  Text(
-                    displayName,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: screenWidth * 0.03,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(width: screenWidth * 0.02),
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: screenWidth * 0.02,
-                vertical: screenWidth * 0.01,
-              ),
-              decoration: BoxDecoration(
-                color: const Color(0xFF6C5CE7).withOpacity(0.3),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.diamond, color: const Color(0xFF6C5CE7), size: screenWidth * 0.04),
-                  SizedBox(width: screenWidth * 0.01),
-                  Text(
-                    score.toString(),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: screenWidth * 0.035,
-                    ),
-                  ),
+                  Text(title,
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 4),
+                  Text(message,
+                      style: const TextStyle(color: Colors.white70, fontSize: 14)),
                 ],
               ),
             ),
           ],
         ),
+        backgroundColor: backgroundColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
 
-  Widget _buildModalFallbackAvatar() {
-    return Container(
-      width: 80,
-      height: 80,
-      color: _getRankColor(rank),
-      child: Center(
-        child: Text(
-          '#$rank',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 32,
-          ),
-        ),
-      ),
-    );
-  }
+  /// Mascot animation
+  class _MascotAnimation extends StatelessWidget {
+    final String asset;
+    final double width;
+    final double height;
+    final double verticalNudge;
+    final double scale;
 
-  Widget _buildFallbackBadge() {
-    return Container(
-      width: screenWidth * 0.125,
-      height: screenWidth * 0.125,
-      decoration: BoxDecoration(
-        color: _getRankColor(rank),
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: _getRankColor(rank).withOpacity(0.5),
-            blurRadius: 8,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Center(
-        child: Text(
-          '#$rank',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: screenWidth * 0.04,
-          ),
-        ),
-      ),
-    );
-  }
-}
+    const _MascotAnimation({
+      required this.asset,
+      required this.width,
+      required this.height,
+      this.verticalNudge = 0.0,
+      this.scale = 1.2,
+    });
 
-/// Custom styled SnackBar
-void showStyledSnackBar(BuildContext context, {
-  required String title,
-  required String message,
-  required Color backgroundColor,
-  required IconData icon,
-  Color iconColor = Colors.white,
-}) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: iconColor, size: 24),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 4),
-                Text(message,
-                    style: const TextStyle(color: Colors.white70, fontSize: 14)),
-              ],
+    @override
+    Widget build(BuildContext context) {
+      return SizedBox(
+        width: width,
+        height: height,
+        child: Align(
+          alignment: Alignment(0, verticalNudge),
+          child: ClipRect(
+            child: Transform.scale(
+              scale: scale,
+              alignment: Alignment.center,
+              child: Lottie.asset(
+                asset,
+                width: width,
+                height: height,
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
+                repeat: true,
+                animate: true,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
+                    child: Icon(Icons.pets, size: 120, color: Colors.white),
+                  );
+                },
+              ),
             ),
           ),
-        ],
-      ),
-      backgroundColor: backgroundColor,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      duration: const Duration(seconds: 2),
-    ),
-  );
-}
-
-/// Mascot animation
-class _MascotAnimation extends StatelessWidget {
-  final String asset;
-  final double width;
-  final double height;
-  final double verticalNudge;
-  final double scale;
-
-  const _MascotAnimation({
-    required this.asset,
-    required this.width,
-    required this.height,
-    this.verticalNudge = 0.0,
-    this.scale = 1.2,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      height: height,
-      child: Align(
-        alignment: Alignment(0, verticalNudge),
-        child: FutureBuilder<ByteData>(
-          future: rootBundle.load(asset),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError || !snapshot.hasData) {
-              return const Center(child: Icon(Icons.pets, size: 120, color: Colors.white));
-            }
-            try {
-              return ClipRect(
-                child: Transform.scale(
-                  scale: scale,
-                  alignment: Alignment.center,
-                  child: Lottie.asset(
-                    asset,
-                    width: width,
-                    height: height,
-                    fit: BoxFit.contain,
-                    alignment: Alignment.center,
-                    repeat: true,
-                    animate: true,
-                  ),
-                ),
-              );
-            } catch (e, st) {
-              debugPrint('Lottie error $e\n$st');
-              return const Center(child: Icon(Icons.pets, size: 120, color: Colors.white));
-            }
-          },
         ),
-      ),
-    );
+      );
+    }
   }
-}

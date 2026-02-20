@@ -663,14 +663,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                               BorderRadius.circular(
                                                   12)),
                                         ),
-                                        child: Text('Reset password',
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          child: Text(
+                                            'Reset password',
+                                            maxLines: 1,
                                             style: TextStyle(
-                                                color: const Color(
-                                                    0xFF2196F3),
-                                                fontWeight:
-                                                FontWeight.w600,
-                                                fontSize:
-                                                maxH * 0.016)),
+                                                color: const Color(0xFF2196F3),
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: maxH * 0.016),
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
