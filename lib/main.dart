@@ -12,6 +12,7 @@ import 'screens/mainmenu_screen.dart';
 import 'screens/trivia_game1/main_trivia_screen.dart';
 import 'screens/gemgrab/gem_grab_game_screen.dart';
 import 'screens/tictactoe_screen.dart';
+import 'screens/sun_intro_screen.dart';
 
 void main() async {
   // Ensure Flutter bindings are initialized
@@ -45,7 +46,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // Use AuthWrapper to check authentication state
-      home: const AuthWrapper(),
+      home: const SunIntroScreen(),
       routes: {
         '/welcome': (_) => const WelcomeScreen(),
         '/login': (_) => const LoginScreen(),
@@ -72,11 +73,11 @@ class AuthWrapper extends StatelessWidget {
       stream: authService.authStateChanges,
       builder: (context, snapshot) {
         // Show loading while checking auth state
+// In AuthWrapper, replace the loading state:
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
+            backgroundColor: Color(0xFF0D0D1A), // matches intro bg color
+            body: SizedBox.shrink(),
           );
         }
 
