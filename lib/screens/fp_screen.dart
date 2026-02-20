@@ -11,8 +11,8 @@ class _Layout {
       : isShort = MediaQuery.of(context).size.height < 750;
 
   // Three-zone flex: top spacer / middle spacer / bottom padding
-  int get topFlex    => isShort ? 7 : 10;
-  int get middleFlex => isShort ? 10 : 18;
+  int get topFlex    => isShort ? 7 : 12;
+  int get middleFlex => isShort ? 10 : 16;
   int get bottomFlex => isShort ? 8  : 12;
 
   double get fieldH => isShort ? 46.0 : 52.0;
