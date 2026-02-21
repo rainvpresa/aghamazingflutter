@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:aghamazing1/main.dart'; // 👈 imports AuthWrapper
+import 'package:aghamazing1/main.dart';
+
+// Exact cream from Lottie JSON: [0.9961, 0.9529, 0.8667] = rgb(254, 243, 221)
+const _kCream = Color(0xFFFEF3DD);
 
 class SunIntroScreen extends StatefulWidget {
   const SunIntroScreen({super.key});
@@ -25,27 +28,27 @@ class _SunIntroScreenState extends State<SunIntroScreen>
 
     _slideController = AnimationController(vsync: this);
     _slideAnimation = TweenSequence<Offset>([
-      // Phase 1 — peek up from bottom
+      // Phase 1 — rise up from below screen
       TweenSequenceItem(
         tween: Tween(
-          begin: const Offset(0, 1.2),
-          end: const Offset(0, 0.25),
+          begin: const Offset(0, 1.0),
+          end: const Offset(0, -0.3),
         ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 35,
       ),
       // Phase 2 — hang out bouncing
       TweenSequenceItem(
         tween: Tween(
-          begin: const Offset(0, 0.25),
-          end: const Offset(0, 0.25),
+          begin: const Offset(0, -0.3),
+          end: const Offset(0, -0.3),
         ),
         weight: 40,
       ),
       // Phase 3 — rise off screen upward
       TweenSequenceItem(
         tween: Tween(
-          begin: const Offset(0, 0.25),
-          end: const Offset(0, -1.5),
+          begin: const Offset(0, -0.3),
+          end: const Offset(0, -2.5),
         ).chain(CurveTween(curve: Curves.easeIn)),
         weight: 25,
       ),
@@ -84,7 +87,7 @@ class _SunIntroScreenState extends State<SunIntroScreen>
         ),
       );
     }
-  } // 👈 this closing brace was missing
+  }
 
   @override
   void dispose() {
@@ -101,48 +104,21 @@ class _SunIntroScreenState extends State<SunIntroScreen>
     return FadeTransition(
       opacity: _fadeAnimation,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0D0D1A),
+        // Scaffold fills the whole screen with cream —
+        // the Lottie bg layer is hidden so there's no seam
+        backgroundColor: _kCream,
         body: Stack(
+          clipBehavior: Clip.hardEdge,
           children: [
-            // Subtle radial glow behind sun
             Positioned(
-              bottom: 0,
+              bottom: -size.width * 0.3,
               left: 0,
               right: 0,
-              child: AnimatedBuilder(
-                animation: _slideController,
-                builder: (_, __) {
-                  final progress = _slideController.value;
-                  final glowOpacity = progress < 0.35
-                      ? (progress / 0.35).clamp(0.0, 1.0) * 0.4
-                      : progress > 0.75
-                      ? ((1.0 - progress) / 0.25).clamp(0.0, 1.0) * 0.4
-                      : 0.4;
-                  return Container(
-                    height: size.height * 0.5,
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        center: Alignment.bottomCenter,
-                        radius: 1.2,
-                        colors: [
-                          const Color(0xFFFFD700).withOpacity(glowOpacity),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            // The Lottie sun, sliding in/out
-            SlideTransition(
-              position: _slideAnimation,
-              child: Align(
-                alignment: Alignment.center,
+              child: SlideTransition(
+                position: _slideAnimation,
                 child: SizedBox(
-                  width: size.width * 0.7,
-                  height: size.width * 0.7,
+                  width: size.width,
+                  height: size.width * 1.1,
                   child: Lottie.asset(
                     'assets/animations/sunshine.json',
                     controller: _lottieController,
@@ -152,6 +128,16 @@ class _SunIntroScreenState extends State<SunIntroScreen>
                         ..repeat();
                     },
                     fit: BoxFit.contain,
+                    // Hide the Lottie's own bg rectangle entirely.
+                    // The layer name is "bg" and slot sid is "BG" per the JSON.
+                    delegates: LottieDelegates(
+                      values: [
+                        ValueDelegate.opacity(
+                          const ['bg', 'Group 17', '**'],
+                          value: 0,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
