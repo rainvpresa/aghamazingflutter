@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/userprofile_service.dart';
-import '../services/faq_service.dart'; // ← ADD THIS IMPORT
+import '../services/sound_manager.dart'; // 🔊 added
+import '../services/faq_service.dart';
 
 // ─────────────────────────────────────────────
 //  DOST-STII BRAND COLORS
@@ -71,7 +72,6 @@ class FaqItem {
 
 // ─────────────────────────────────────────────
 //  HARDCODED FALLBACK FAQ CONTENT
-//  Used only if Firestore fetch fails
 // ─────────────────────────────────────────────
 final List<FaqCategory> kFaqCategories = [
   FaqCategory(
@@ -260,7 +260,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   final List<ChatMessage> _messages = [];
   bool _isTyping = false;
 
-  // ── FAQ state ──────────────────────────────
   List<FaqCategory> _faqCategories = [];
   bool _isLoadingFaq = true;
 
@@ -268,7 +267,6 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       'https://www.google.com/maps/search/?api=1&query=DOST-STII+Bicutan+Taguig';
   static const String _stiiWebsiteUrl = 'https://www.stii.dost.gov.ph';
 
-  // ── Single initState ───────────────────────
   @override
   void initState() {
     super.initState();
@@ -327,6 +325,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _onCategoryTapped(FaqCategory category) {
+    SoundManager.instance.playClick(); // 🔊
     setState(() {
       _messages.add(ChatMessage(text: category.label, type: MessageType.user));
     });
@@ -362,6 +361,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _onQuestionTapped(FaqItem item, {bool skipUserBubble = false}) {
+    SoundManager.instance.playClick(); // 🔊
     if (!skipUserBubble) {
       setState(() {
         _messages.add(ChatMessage(text: item.question, type: MessageType.user));
@@ -427,19 +427,21 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   }
 
   void _showFeedbackModal() async {
+    SoundManager.instance.playClick(); // 🔊
     final profile = await UserProfileService().getUserProfile();
     final username = profile?['displayName'] ?? 'Anonymous';
-    final userId = profile?['uid'] ?? '';  // ← ADD THIS (adjust key to match your profile model)
+    final userId = profile?['uid'] ?? '';
     if (!mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _FeedbackModal(username: username, userId: userId), // ← PASS IT
+      builder: (_) => _FeedbackModal(username: username, userId: userId),
     );
   }
 
   void _onActionButtonTapped(String label) {
+    SoundManager.instance.playClick(); // 🔊
     switch (label) {
       case 'Visit Website':
         _launchUrl(_stiiWebsiteUrl);
@@ -448,7 +450,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         _launchUrl(_mapsUrl);
         break;
       case 'Contact Form':
-        _showFeedbackModal();
+        _showFeedbackModal(); // 🔊 already has its own click inside
         break;
       case 'Back to Menu':
         setState(() {
@@ -516,7 +518,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       elevation: 0,
       leading: IconButton(
         icon: Icon(Icons.arrow_back_ios_new_rounded, size: layout.r(20)),
-        onPressed: () => Navigator.of(context).maybePop(),
+        onPressed: () {
+          SoundManager.instance.playClick(); // 🔊
+          Navigator.of(context).maybePop();
+        },
       ),
       title: Row(
         children: [
@@ -743,7 +748,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
   Widget _buildCategoryCard(FaqCategory cat, _Layout layout) {
     return GestureDetector(
-      onTap: () => _onCategoryTapped(cat),
+      onTap: () => _onCategoryTapped(cat), // 🔊 sound called inside
       child: Container(
         decoration: BoxDecoration(
           color: kWhite,
@@ -796,7 +801,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
   Widget _buildQuestionChip(FaqItem item, _Layout layout) {
     return GestureDetector(
-      onTap: () => _onQuestionTapped(item),
+      onTap: () => _onQuestionTapped(item), // 🔊 sound called inside
       child: Container(
         width: double.infinity,
         margin: EdgeInsets.only(bottom: layout.r(8), right: layout.r(20)),
@@ -856,7 +861,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     final bool isLink = label == 'Visit Website';
 
     return GestureDetector(
-      onTap: () => _onActionButtonTapped(label),
+      onTap: () => _onActionButtonTapped(label), // 🔊 sound called inside
       child: Container(
         padding: EdgeInsets.symmetric(
             horizontal: layout.r(14), vertical: layout.r(9)),
@@ -966,11 +971,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 // ─────────────────────────────────────────────
 class _FeedbackModal extends StatefulWidget {
   final String username;
-  final String userId; // ✅ field
+  final String userId;
 
   const _FeedbackModal({
     required this.username,
-    required this.userId, // ✅ add this
+    required this.userId,
   });
 
   @override
@@ -984,6 +989,7 @@ class _FeedbackModalState extends State<_FeedbackModal> {
   bool _submitted = false;
 
   Future<void> _submit() async {
+    SoundManager.instance.playClick(); // 🔊
     final text = _feedbackController.text.trim();
     if (_rating == 0 && text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1076,7 +1082,10 @@ class _FeedbackModalState extends State<_FeedbackModal> {
                   borderRadius: BorderRadius.circular(layout.r(14))),
               padding: EdgeInsets.symmetric(vertical: layout.r(14)),
             ),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              SoundManager.instance.playClick(); // 🔊
+              Navigator.of(context).pop();
+            },
             child: Text('Close',
                 style: TextStyle(
                     fontWeight: FontWeight.w600, fontSize: layout.sp(14))),
@@ -1149,7 +1158,10 @@ class _FeedbackModalState extends State<_FeedbackModal> {
           children: List.generate(5, (i) {
             final starIndex = i + 1;
             return GestureDetector(
-              onTap: () => setState(() => _rating = starIndex),
+              onTap: () {
+                SoundManager.instance.playClick(); // 🔊
+                setState(() => _rating = starIndex);
+              },
               child: Padding(
                 padding: EdgeInsets.only(right: layout.r(6)),
                 child: Icon(
@@ -1216,7 +1228,7 @@ class _FeedbackModalState extends State<_FeedbackModal> {
                   borderRadius: BorderRadius.circular(layout.r(14))),
               padding: EdgeInsets.symmetric(vertical: layout.r(14)),
             ),
-            onPressed: _isSubmitting ? null : _submit,
+            onPressed: _isSubmitting ? null : _submit, // 🔊 sound called inside _submit
             child: _isSubmitting
                 ? SizedBox(
               height: layout.r(18),

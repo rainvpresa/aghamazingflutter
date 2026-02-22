@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
 import '../../services/userprofile_service.dart';
 import '../../services/player_stats_service.dart';
+import '../../services/sound_manager.dart'; // 🔊 added
 import '../../widgets/game_quit_handler.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -442,6 +443,9 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
   @override
   void initState() {
     super.initState();
+    // 🔊 Keep menu BGM playing — ensures menu music is active even if another
+    // screen (e.g. scan screen) switched to game music before arriving here.
+    SoundManager.instance.playMenuMusic();
     loadPlaysRemaining();
     _initAnimations();
   }
@@ -465,6 +469,8 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
     gameTimer?.cancel();
     _pulseController.dispose();
     _floatController.dispose();
+    // 🔊 No music call here — menu music is already playing and continues
+    // seamlessly back in the main menu without any restart.
     super.dispose();
   }
 
@@ -509,11 +515,10 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
   // ── QUIT LOGIC ─────────────────────────────────────────────────────────────
   void _onBackPressed() {
     if (!isGameActive) {
-      Navigator.pop(context);
+      Navigator.of(context).pop();
       return;
     }
 
-    // Pause
     gameTimer?.cancel();
     setState(() => isGameActive = false);
 
@@ -601,13 +606,11 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
       await svc.addCoins(amount: coinsEarned, reason: 'Gem Grab game - Score: $score');
       await svc.updateGameStats(gamesPlayed: 1, totalScore: gemsEarned);
 
-      // ✅ SAVE PLAYER STATS
       await PlayerStatsService().saveGemGrabSession(
         gemsCollected: score,
         coinsEarned: coinsEarned,
         playsRemaining: playsRemaining,
       );
-
     } catch (e) { debugPrint('❌ $e'); }
 
     if (mounted) _showGameOverDialog(coinsEarned, gemsEarned);
@@ -615,10 +618,13 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
 
   // ── DIALOGS ────────────────────────────────────────────────────────────────
   void _showGameOverDialog(int coins, int gemsEarned) {
+    // 🔧 FIX: use dialogCtx (dialog's own BuildContext) for the first pop so
+    // the dialog is dismissed correctly, then use the game screen's `context`
+    // for the second pop to return to the main menu.
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _GemGrabDialog(
+      builder: (dialogCtx) => _GemGrabDialog(
         title: 'GAME OVER',
         titleColor: _GG.gold,
         icon: Icons.stars_rounded,
@@ -641,13 +647,19 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
           if (playsRemaining > 0) ...[
             _ArcadeButton(
                 label: 'PLAY AGAIN', icon: Icons.replay,
-                onTap: () { Navigator.pop(context); startGame(); },
+                onTap: () {
+                  Navigator.of(dialogCtx).pop(); // ✅ dismiss dialog
+                  startGame();
+                },
                 top: _GG.green, bottom: _GG.greenDark, shadow: _GG.green),
             const SizedBox(height: 8),
           ],
           _ArcadeButton(
               label: 'MAIN MENU', icon: Icons.home_rounded,
-              onTap: () { Navigator.pop(context); Navigator.pop(context); },
+              onTap: () {
+                Navigator.of(dialogCtx).pop(); // ✅ dismiss dialog first
+                Navigator.of(context).pop();   // ✅ then pop game screen → back to main menu
+              },
               top: _GG.purple, bottom: _GG.purpleDark, shadow: _GG.purple),
         ],
       ),
@@ -655,9 +667,10 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
   }
 
   void showNoPlaysDialog() {
+    // 🔧 Same fix: use dialogCtx for the dialog pop, context for the game pop.
     showDialog(
       context: context,
-      builder: (_) => _GemGrabDialog(
+      builder: (dialogCtx) => _GemGrabDialog(
         title: 'OUT OF PLAYS',
         titleColor: _GG.orange,
         icon: Icons.hourglass_bottom_rounded,
@@ -682,7 +695,10 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
         actions: [
           _ArcadeButton(
               label: 'OK',
-              onTap: () { Navigator.pop(context); Navigator.pop(context); },
+              onTap: () {
+                Navigator.of(dialogCtx).pop(); // ✅ dismiss dialog first
+                Navigator.of(context).pop();   // ✅ then pop game screen → back to main menu
+              },
               top: _GG.purple, bottom: _GG.purpleDark, shadow: _GG.purple),
         ],
       ),
@@ -902,7 +918,8 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
       Padding(
         padding: EdgeInsets.symmetric(horizontal: w * 0.1),
         child: _ArcadeButton(
-            label: 'BACK TO MENU', onTap: () => Navigator.pop(context),
+            label: 'BACK TO MENU',
+            onTap: () => Navigator.of(context).pop(), // ✅ no dialog in the way here
             top: _GG.purple, bottom: _GG.purpleDark, shadow: _GG.purple,
             icon: Icons.home_rounded),
       ),

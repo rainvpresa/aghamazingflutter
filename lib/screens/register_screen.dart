@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import '../services/auth_service.dart';
+import '../services/sound_manager.dart';
 
 // ─────────────────────────────────────────────
 //  LAYOUT HELPER
@@ -118,6 +119,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   //  TERMS DIALOG  (unchanged logic)
   // ─────────────────────────────────────────────
   void _showTermsAndConditions() {
+    SoundManager.instance.playClick();
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -165,7 +167,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           icon: Icon(Icons.close,
                               color: Colors.white,
                               size: isVerySmall ? 20 : 24),
-                          onPressed: () => Navigator.of(context).pop(),
+                          onPressed: () {
+                            SoundManager.instance.playClick();
+                            Navigator.of(context).pop();
+                          },
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                         ),
@@ -220,7 +225,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(),
+                        onPressed: () {
+                          SoundManager.instance.playClick();
+                          Navigator.of(context).pop();
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1866B2),
                           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -271,6 +279,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   //  CREATE ACCOUNT
   // ─────────────────────────────────────────────
   Future<void> _onCreatePressed() async {
+    SoundManager.instance.playClick();
     setState(() {
       _nickTouched = _emailTouched = _passTouched = _confirmTouched = true;
     });
@@ -324,6 +333,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             actions: [
               TextButton(
                 onPressed: () {
+                  SoundManager.instance.playClick();
                   Navigator.of(context).pop();
                   Navigator.of(context).pushReplacementNamed('/login');
                 },
@@ -508,8 +518,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                             : Icons.visibility,
                                         color: Colors.black54,
                                         size: 20),
-                                    onPressed: () => setState(
-                                            () => _obscurePass = !_obscurePass),
+                                    onPressed: () {
+                                      SoundManager.instance.playClick();
+                                      setState(() => _obscurePass = !_obscurePass);
+                                    },
                                   ),
                                 ]),
                               ),
@@ -549,8 +561,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                             : Icons.visibility,
                                         color: Colors.black54,
                                         size: 20),
-                                    onPressed: () => setState(() =>
-                                    _obscureConfirm = !_obscureConfirm),
+                                    onPressed: () {
+                                      SoundManager.instance.playClick();
+                                      setState(() => _obscureConfirm = !_obscureConfirm);
+                                    },
                                   ),
                                 ]),
                               ),
@@ -570,8 +584,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       height: 24,
                                       child: Checkbox(
                                         value: _acceptedTerms,
-                                        onChanged: (v) => setState(
-                                                () => _acceptedTerms = v ?? false),
+                                        onChanged: (v) {
+                                          SoundManager.instance.playClick();
+                                          setState(() => _acceptedTerms = v ?? false);
+                                        },
                                         activeColor: const Color(0xFF1866B2),
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
@@ -653,9 +669,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                               // Login link
                               GestureDetector(
-                                onTap: () => Navigator.of(context).pushReplacement(
-                                    MaterialPageRoute(
-                                        builder: (_) => const LoginScreen())),
+                                onTap: () {
+                                  SoundManager.instance.playClick();
+                                  Navigator.of(context).pushReplacement(
+                                      MaterialPageRoute(
+                                          builder: (_) => const LoginScreen()));
+                                },
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
                                       vertical: 6.0),

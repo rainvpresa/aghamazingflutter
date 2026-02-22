@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
 import '../services/userprofile_service.dart';
+import '../services/sound_manager.dart'; // 🔊 added
 import 'login_screen.dart';
 
 // ─────────────────────────────────────────────
@@ -88,6 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _saveName() async {
+    SoundManager.instance.playClick(); // 🔊
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -128,6 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showAvatarSheet() async {
+    SoundManager.instance.playClick(); // 🔊
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.white,
@@ -166,6 +169,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     final selected = a == _profileAvatarPath;
                     return GestureDetector(
                       onTap: () async {
+                        SoundManager.instance.playClick(); // 🔊
                         Navigator.of(ctx).pop();
                         await _saveAvatar(a);
                       },
@@ -196,6 +200,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               TextButton(
                 onPressed: () {
+                  SoundManager.instance.playClick(); // 🔊
                   Navigator.of(ctx).pop();
                   _saveAvatar('');
                 },
@@ -209,6 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showEditEmailDialog() async {
+    SoundManager.instance.playClick(); // 🔊
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -216,10 +222,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: const Text('To change your email, please contact support.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
+              onPressed: () {
+                SoundManager.instance.playClick(); // 🔊
+                Navigator.of(ctx).pop();
+              },
               child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
+              SoundManager.instance.playClick(); // 🔊
               Navigator.of(ctx).pop();
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                   content:
@@ -233,6 +243,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showResetPasswordDialog() async {
+    SoundManager.instance.playClick(); // 🔊
     final user = _auth.currentUser;
     if (user == null || user.email == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -246,10 +257,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: Text('Send a password reset link to:\n${user.email}'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
+              onPressed: () {
+                SoundManager.instance.playClick(); // 🔊
+                Navigator.of(ctx).pop(false);
+              },
               child: const Text('Cancel')),
           ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
+              onPressed: () {
+                SoundManager.instance.playClick(); // 🔊
+                Navigator.of(ctx).pop(true);
+              },
               child: const Text('Send Link')),
         ],
       ),
@@ -284,7 +301,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
+                  onPressed: () {
+                    SoundManager.instance.playClick(); // 🔊
+                    Navigator.of(ctx).pop();
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF57BF0F),
                     shape: RoundedRectangleBorder(
@@ -305,6 +325,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _confirmLogout() async {
+    SoundManager.instance.playClick(); // 🔊
     final should = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -312,10 +333,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: const Text('Are you sure you want to log out?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
+              onPressed: () {
+                SoundManager.instance.playClick(); // 🔊
+                Navigator.of(ctx).pop(false);
+              },
               child: const Text('No')),
           ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
+            onPressed: () {
+              SoundManager.instance.playClick(); // 🔊
+              Navigator.of(ctx).pop(true);
+            },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Yes'),
           ),
@@ -355,7 +382,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
     return GestureDetector(
-      onTap: _showAvatarSheet,
+      onTap: _showAvatarSheet, // 🔊 sound called inside _showAvatarSheet
       child: Stack(
         alignment: Alignment.bottomRight,
         children: [
@@ -396,17 +423,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // ── Background (same as main menu) ──────────────────────
           Positioned.fill(
             child: Image.asset(
               ProfileScreen._bg,
-              fit: BoxFit.fill, // fills entire screen on all resolutions including 1520x720
+              fit: BoxFit.fill,
               errorBuilder: (_, __, ___) =>
                   Container(color: Colors.orange.shade200),
             ),
           ),
-
-          // ── Content ─────────────────────────────────────────────
           SafeArea(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -419,14 +443,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
 
                     // ── Back button row ──────────────────────
-                    // Height is large enough to clear the "Profile"
-                    // title bar that's baked into the background image
                     SizedBox(
                       height: maxH * 0.14,
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: GestureDetector(
-                          onTap: () => Navigator.of(context).pop(),
+                          onTap: () {
+                            SoundManager.instance.playClick(); // 🔊
+                            Navigator.of(context).pop();
+                          },
                           child: Image.asset(
                             ProfileScreen.backButtonAsset,
                             width: maxW * 0.25,
@@ -620,8 +645,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       SizedBox(
                                         height: maxH * 0.058,
                                         child: ElevatedButton(
-                                          onPressed:
-                                          _showEditEmailDialog,
+                                          onPressed: _showEditEmailDialog, // 🔊 sound called inside
                                           style:
                                           ElevatedButton.styleFrom(
                                             backgroundColor:
@@ -653,8 +677,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     child: SizedBox(
                                       height: maxH * 0.058,
                                       child: OutlinedButton(
-                                        onPressed:
-                                        _showResetPasswordDialog,
+                                        onPressed: _showResetPasswordDialog, // 🔊 sound called inside
                                         style: OutlinedButton.styleFrom(
                                           side: const BorderSide(
                                               color: Color(0xFF2196F3)),
@@ -682,7 +705,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     child: SizedBox(
                                       height: maxH * 0.058,
                                       child: ElevatedButton(
-                                        onPressed: _saveName,
+                                        onPressed: _saveName, // 🔊 sound called inside
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor:
                                           const Color(0xFF57BF0F),
@@ -709,7 +732,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 width: double.infinity,
                                 height: maxH * 0.058,
                                 child: OutlinedButton(
-                                  onPressed: _confirmLogout,
+                                  onPressed: _confirmLogout, // 🔊 sound called inside
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor:
                                     const Color(0xFFE53935),

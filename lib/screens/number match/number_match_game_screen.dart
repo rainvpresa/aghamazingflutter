@@ -427,11 +427,8 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
       child: Scaffold(
         body: Stack(
           children: [
-            // Gradient background
             const _GradientBackground(),
-            // Blobs
             const _BlobLayer(),
-            // Safe area content
             SafeArea(
               child: _gameState == GameState.menu
                   ? _buildMenuScreen()
@@ -455,34 +452,19 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
 
         return Column(
           children: [
-            // Top decorative tiles
             _buildDecoTiles(w),
-
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Title block
                   _buildTitleBlock(w),
-
                   SizedBox(height: h * 0.03),
-
-                  // Score pills
                   _buildScorePills(w),
-
                   SizedBox(height: h * 0.025),
-
-                  // How to play card
                   _buildHowToPlayCard(w),
-
                   SizedBox(height: h * 0.035),
-
-                  // Start button
                   _buildStartButton(w),
-
                   SizedBox(height: h * 0.015),
-
-                  // Back button
                   TextButton.icon(
                     onPressed: _onBackPressed,
                     icon: Icon(Icons.arrow_back_rounded,
@@ -517,10 +499,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
     final tileSize = w * 0.13;
 
     return Padding(
-      padding: EdgeInsets.symmetric(
-        vertical: w * 0.04,
-        horizontal: w * 0.04,
-      ),
+      padding: EdgeInsets.symmetric(vertical: w * 0.04, horizontal: w * 0.04),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(labels.length, (i) {
@@ -617,10 +596,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
 
   Widget _buildScorePill(String label, String value, double w) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        vertical: w * 0.035,
-        horizontal: w * 0.04,
-      ),
+      padding: EdgeInsets.symmetric(vertical: w * 0.035, horizontal: w * 0.04),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.72),
         borderRadius: BorderRadius.circular(w * 0.05),
@@ -755,7 +731,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
             SizedBox(height: h * 0.008),
             _buildSwipeIndicator(),
             SizedBox(height: h * 0.008),
-            Expanded(  // ← grid takes all remaining space
+            Expanded(
               child: Center(
                 child: GestureDetector(
                   onPanEnd: (details) {
@@ -905,7 +881,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
         const gap = 8.0;
         const padding = 12.0;
         const borderWidth = 1.5;
-        final inner = available - borderWidth * 2;  // account for border
+        final inner = available - borderWidth * 2;
         final cellSize = ((inner - padding * 2 - gap * gridSize) / gridSize).floorToDouble();
 
         return Container(
@@ -1028,7 +1004,6 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
         padding: EdgeInsets.symmetric(horizontal: w * 0.04, vertical: w * 0.03),
         child: Row(
           children: [
-            // Back button
             GestureDetector(
               onTap: _onBackPressed,
               child: Container(
@@ -1104,7 +1079,6 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
         ),
         child: Column(
           children: [
-            // Icon
             Container(
               width: w * 0.24,
               height: w * 0.24,
@@ -1135,7 +1109,6 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
 
             SizedBox(height: h * 0.02),
 
-            // Title
             ShaderMask(
               shaderCallback: (bounds) => LinearGradient(
                 colors: isWinner
@@ -1155,7 +1128,6 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
 
             SizedBox(height: h * 0.02),
 
-            // Score + tile + level all in one card
             Container(
               width: double.infinity,
               padding: EdgeInsets.all(w * 0.06),
@@ -1173,11 +1145,9 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
               ),
               child: Column(
                 children: [
-                  // Score block
                   Container(
                     width: double.infinity,
-                    padding: EdgeInsets.symmetric(
-                        vertical: h * 0.02, horizontal: w * 0.04),
+                    padding: EdgeInsets.symmetric(vertical: h * 0.02, horizontal: w * 0.04),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFF6d28d9), Color(0xFFdb2777)],
@@ -1207,19 +1177,16 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
 
                   SizedBox(height: h * 0.015),
 
-                  // Highest tile + level in a row
                   Row(
                     children: [
                       Expanded(
                         child: Container(
-                          padding: EdgeInsets.symmetric(
-                              vertical: h * 0.015, horizontal: w * 0.03),
+                          padding: EdgeInsets.symmetric(vertical: h * 0.015, horizontal: w * 0.03),
                           decoration: BoxDecoration(
                             color: const Color(0xFFdb2777).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(w * 0.04),
                             border: Border.all(
-                                color: const Color(0xFFdb2777).withOpacity(0.3),
-                                width: 1.5),
+                                color: const Color(0xFFdb2777).withOpacity(0.3), width: 1.5),
                           ),
                           child: Column(
                             children: [
@@ -1244,14 +1211,12 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
                       SizedBox(width: w * 0.03),
                       Expanded(
                         child: Container(
-                          padding: EdgeInsets.symmetric(
-                              vertical: h * 0.015, horizontal: w * 0.03),
+                          padding: EdgeInsets.symmetric(vertical: h * 0.015, horizontal: w * 0.03),
                           decoration: BoxDecoration(
                             color: const Color(0xFF059669).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(w * 0.04),
                             border: Border.all(
-                                color: const Color(0xFF059669).withOpacity(0.3),
-                                width: 1.5),
+                                color: const Color(0xFF059669).withOpacity(0.3), width: 1.5),
                           ),
                           child: Column(
                             children: [
@@ -1278,7 +1243,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
 
                   SizedBox(height: h * 0.02),
 
-                  // Buttons
+                  // ── Buttons ──
                   Row(
                     children: [
                       Expanded(
@@ -1328,21 +1293,84 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: Colors.white, size: w * 0.055),
             SizedBox(width: w * 0.02),
-            Text(
-              text,
-              style: GoogleFonts.nunito(
-                color: Colors.white,
-                fontSize: w * 0.038,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.5,
+            Flexible(
+              child: _ScrollingText(
+                text: text,
+                style: GoogleFonts.nunito(
+                  color: Colors.white,
+                  fontSize: w * 0.038,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+// ─────────────────────────── SCROLLING TEXT ───────────────────────────
+
+class _ScrollingText extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+  const _ScrollingText({required this.text, required this.style});
+
+  @override
+  State<_ScrollingText> createState() => _ScrollingTextState();
+}
+
+class _ScrollingTextState extends State<_ScrollingText> {
+  late ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startScroll());
+  }
+
+  Future<void> _startScroll() async {
+    while (mounted) {
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (!mounted) break;
+      if (_scrollController.hasClients &&
+          _scrollController.position.maxScrollExtent > 0) {
+        await _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 700),
+          curve: Curves.easeInOut,
+        );
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (!mounted) break;
+        await _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 700),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      child: Text(widget.text, style: widget.style),
     );
   }
 }

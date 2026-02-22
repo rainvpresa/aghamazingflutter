@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_service.dart';
+import '../services/sound_manager.dart';
 import 'fp_screen.dart';
 import 'register_screen.dart';
 
@@ -113,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Login failed: $e'), backgroundColor: Colors.red),
+              content: Text('Login failed: \$e'), backgroundColor: Colors.red),
         );
       }
       _passCtl.clear();
@@ -213,8 +214,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                       icon: Icon(_obscure
                                           ? Icons.visibility_off
                                           : Icons.visibility),
-                                      onPressed: () =>
-                                          setState(() => _obscure = !_obscure),
+                                      onPressed: () {
+                                        SoundManager.instance.playClick();
+                                        setState(() => _obscure = !_obscure);
+                                      },
                                     ),
                                   ),
                                 ),
@@ -234,13 +237,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                         behavior: HitTestBehavior.opaque,
                                         onTapDown: (_) =>
                                             setState(() => _forgotPressed = true),
-                                        onTapUp: (_) => setState(() {
-                                          _forgotPressed = false;
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                                builder: (_) => FpScreen()),
-                                          );
-                                        }),
+                                        onTapUp: (_) {
+                                          SoundManager.instance.playClick();
+                                          setState(() {
+                                            _forgotPressed = false;
+                                            Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                  builder: (_) => FpScreen()),
+                                            );
+                                          });
+                                        },
                                         onTapCancel: () =>
                                             setState(() => _forgotPressed = false),
                                         child: AnimatedDefaultTextStyle(
@@ -287,14 +293,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                         behavior: HitTestBehavior.opaque,
                                         onTapDown: (_) => setState(
                                                 () => _registerPressed = true),
-                                        onTapUp: (_) => setState(() {
-                                          _registerPressed = false;
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                                builder: (_) =>
-                                                const RegisterScreen()),
-                                          );
-                                        }),
+                                        onTapUp: (_) {
+                                          SoundManager.instance.playClick();
+                                          setState(() {
+                                            _registerPressed = false;
+                                            Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                  builder: (_) =>
+                                                  const RegisterScreen()),
+                                            );
+                                          });
+                                        },
                                         onTapCancel: () => setState(
                                                 () => _registerPressed = false),
                                         child: AnimatedDefaultTextStyle(
@@ -347,6 +356,7 @@ class _LoginScreenState extends State<LoginScreen> {
         },
         onTapUp: (_) {
           if (!_isBusy) {
+            SoundManager.instance.playClick();
             setState(() => _loginPressed = false);
             _submit();
           }

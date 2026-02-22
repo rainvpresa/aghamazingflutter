@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'energy_manager.dart';
+import 'sound_manager.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -274,7 +275,8 @@ class AuthService {
     try {
       if (currentUser != null) {
         final userId = currentUser!.uid;
-        // Clear local session first
+        // Stop music and clear session
+        await SoundManager.instance.stopMusic();
         await _clearSession();
         // Sign out
         await _auth.signOut();

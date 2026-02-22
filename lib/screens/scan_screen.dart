@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
 import 'dart:math';
 import '../../services/energy_manager.dart';
+import '../../services/sound_manager.dart';
 import 'trivia_game1/main_trivia_screen.dart';
 import 'number match/number_match_game_screen.dart';
 import 'color game/color_game.dart';
@@ -13,12 +14,10 @@ import 'tictactoe_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════
 // MODEL
-// Maps to your Firestore collection: popup_facts
-// Each doc has two fields → info: "Did you know?" | fact: "..."
 // ═══════════════════════════════════════════════════════════════
 class PopupFact {
-  final String info; // e.g. "Did you know?"
-  final String fact; // e.g. "The earth is round"
+  final String info;
+  final String fact;
 
   const PopupFact({required this.info, required this.fact});
 
@@ -32,11 +31,6 @@ class PopupFact {
 
 // ═══════════════════════════════════════════════════════════════
 // SERVICE
-// Same pattern as your TriviaService + FaqService:
-//   • Singleton instance
-//   • Session-level cache (only hits Firestore once per session)
-//   • fetch all → shuffle → pick one
-//   • clearCache() for force-refresh if needed
 // ═══════════════════════════════════════════════════════════════
 class PopupFactService {
   PopupFactService._();
@@ -44,7 +38,6 @@ class PopupFactService {
 
   List<PopupFact>? _cache;
 
-  // Fallback facts — shown if Firestore is unreachable (no internet, rules blocked, etc.)
   static const List<PopupFact> _fallbackFacts = [
     PopupFact(info: 'Did you know?', fact: 'The ocean produces over 50% of Earth\'s oxygen.'),
     PopupFact(info: 'Fun Fact!',     fact: 'Honey never spoils — 3000-year-old honey was found in Egyptian tombs.'),
@@ -55,13 +48,10 @@ class PopupFactService {
     try {
       if (_cache == null) {
         debugPrint('🔍 PopupFactService: Fetching from Firestore...');
-
         final snapshot = await FirebaseFirestore.instance
             .collection('popup_facts')
             .get();
-
         debugPrint('✅ PopupFactService: Got ${snapshot.docs.length} docs');
-
         _cache = snapshot.docs.map((doc) {
           debugPrint('   Doc ID: ${doc.id} | data: ${doc.data()}');
           return PopupFact.fromFirestore(doc.data());
@@ -76,12 +66,9 @@ class PopupFactService {
       final shuffled = List<PopupFact>.from(_cache!)..shuffle();
       debugPrint('✅ PopupFactService: Returning fact → ${shuffled.first.info}');
       return shuffled.first;
-
     } catch (e) {
-      // Log the REAL error so you can see it in Android Studio's debug console
       debugPrint('❌ PopupFactService FAILED: $e');
       debugPrint('   → Using fallback fact instead');
-      // Return a fallback so the fact dialog still shows (not a game)
       return _fallbackFacts[Random().nextInt(_fallbackFacts.length)];
     }
   }
@@ -133,6 +120,8 @@ class _ARScanScreenState extends State<ARScanScreen>
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
     _initializeCamera();
+
+    SoundManager.instance.playGameMusic();
   }
 
   @override
@@ -140,6 +129,9 @@ class _ARScanScreenState extends State<ARScanScreen>
     _scanAnimationController.dispose();
     _cameraController?.dispose();
     _textRecognizer.close();
+
+    SoundManager.instance.playMenuMusic();
+
     super.dispose();
   }
 
@@ -179,7 +171,6 @@ class _ARScanScreenState extends State<ARScanScreen>
 
       final recognizedText = await _textRecognizer.processImage(inputImage);
 
-      // ── Keywords that trigger the popup ──
       const keywords = ["LIMITLESS", "BILLIARD", "BOWLING", "KTV", "BARCA"];
 
       bool found = false;
@@ -192,7 +183,7 @@ class _ARScanScreenState extends State<ARScanScreen>
 
       if (found && mounted) {
         await _cameraController?.stopImageStream();
-        _triggerRandomPopup(); // ← randomly shows a GAME or a FACT
+        _triggerRandomPopup();
       }
     } catch (e) {
       debugPrint('Scan error: $e');
@@ -223,18 +214,7 @@ class _ARScanScreenState extends State<ARScanScreen>
     );
   }
 
-  // ─── SHUFFLE BAG RANDOMIZER ─────────────────────────────────
-  // Instead of pure Random() which can repeat the same result many times,
-  // we use a "shuffle bag": fill a bag with all options, shuffle it, then
-  // pop one at a time. Only refill + reshuffle when the bag is empty.
-  // This guarantees every option appears once before any can repeat.
-  //
-  // Options pool (5 total):
-  //   'fact'         → show a random Firestore fact
-  //   'trivia'       → Trivia Challenge
-  //   'number_match' → Number Match
-  //   'color_puzzle' → Color Puzzle
-  //   'tictactoe'    → Tic Tac Toe
+  // ─── SHUFFLE BAG RANDOMIZER ──────────────────────────────────
   final List<String> _shuffleBag = [];
 
   String _nextOption() {
@@ -261,7 +241,6 @@ class _ARScanScreenState extends State<ARScanScreen>
       final fact = await PopupFactService.instance.getRandomFact();
       if (!mounted) return;
       if (fact == null) {
-        // Firestore failed — skip this slot and show trivia instead
         _showSpecificGame('trivia');
         return;
       }
@@ -286,12 +265,14 @@ class _ARScanScreenState extends State<ARScanScreen>
       builder: (_) => _GameSelectionDialog(
         gameName: selectedGame.name,
         onStart: () {
+          SoundManager.instance.playClick(); // 🔊
           Navigator.of(context).pop();
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: selectedGame.route),
           );
         },
         onRescan: () {
+          SoundManager.instance.playClick(); // 🔊
           Navigator.of(context).pop();
           _restartScanning();
         },
@@ -307,6 +288,7 @@ class _ARScanScreenState extends State<ARScanScreen>
       builder: (_) => _FactPopupDialog(
         fact: fact,
         onRescan: () {
+          SoundManager.instance.playClick(); // 🔊
           Navigator.of(context).pop();
           _restartScanning();
         },
@@ -341,14 +323,10 @@ class _ARScanScreenState extends State<ARScanScreen>
 
           return Stack(
             children: [
-              // Camera preview — full screen background
               Positioned.fill(child: CameraPreview(_cameraController!)),
-
-              // UI overlay
               Positioned.fill(
                 child: Column(
                   children: [
-                    // ── Back button ──
                     Flexible(
                       flex: 1,
                       child: Align(
@@ -362,8 +340,6 @@ class _ARScanScreenState extends State<ARScanScreen>
                         ),
                       ),
                     ),
-
-                    // ── Scan frame ──
                     Flexible(
                       flex: 5,
                       child: Center(
@@ -377,8 +353,6 @@ class _ARScanScreenState extends State<ARScanScreen>
                         ),
                       ),
                     ),
-
-                    // ── Bottom scan card ──
                     Flexible(
                       flex: 2,
                       child: Align(
@@ -403,7 +377,10 @@ class _ARScanScreenState extends State<ARScanScreen>
 
   Widget _buildBackButton() {
     return GestureDetector(
-      onTap: () => Navigator.pop(context),
+      onTap: () {
+        SoundManager.instance.playClick(); // 🔊
+        Navigator.pop(context);
+      },
       child: Container(
         width: 70, height: 50,
         decoration: BoxDecoration(
@@ -472,15 +449,11 @@ class _ARScanScreenState extends State<ARScanScreen>
 
 // ═══════════════════════════════════════════════════════════════
 // FACT POPUP DIALOG
-// Shows when the random trigger picks a fact from Firestore.
-// Displays fact.info (header) and fact.fact (body text).
-// Styled to match _GameSelectionDialog exactly.
 // ═══════════════════════════════════════════════════════════════
 class _FactPopupDialog extends StatelessWidget {
   final PopupFact fact;
   final VoidCallback onRescan;
 
-  // DOST-STII brand colors — same as game dialog
   static const _blue  = Color(0xFF004A98);
   static const _red   = Color(0xFFED262A);
   static const _white = Color(0xFFFFFFFF);
@@ -513,7 +486,6 @@ class _FactPopupDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Icon ──
             Container(
               width: 70, height: 70,
               decoration: const BoxDecoration(
@@ -522,8 +494,6 @@ class _FactPopupDialog extends StatelessWidget {
                   Icons.lightbulb_rounded, color: _white, size: 38),
             ),
             const SizedBox(height: 20),
-
-            // ── fact.info from Firestore e.g. "DID YOU KNOW?" ──
             Text(
               fact.info.toUpperCase(),
               style: const TextStyle(
@@ -533,8 +503,6 @@ class _FactPopupDialog extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-
-            // ── Decorative divider ──
             Container(
               height: 2,
               decoration: BoxDecoration(
@@ -544,8 +512,6 @@ class _FactPopupDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-
-            // ── fact.fact from Firestore e.g. "The earth is round" ──
             Text(
               fact.fact,
               style: const TextStyle(
@@ -555,13 +521,11 @@ class _FactPopupDialog extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 28),
-
-            // ── RESCAN button ──
             _buildButton(
               label: 'RESCAN',
               icon: Icons.refresh_rounded,
               color: _red,
-              onTap: onRescan,
+              onTap: onRescan, // 🔊 sound called at the call site in _showFactDialog
             ),
           ],
         ),
@@ -616,9 +580,6 @@ class _FactPopupDialog extends StatelessWidget {
 
 // ═══════════════════════════════════════════════════════════════
 // GAME SELECTION DIALOG
-// Shows when the random trigger picks a game.
-// Checks energy via EnergyManager before allowing play.
-// Identical to your original — zero logic changes.
 // ═══════════════════════════════════════════════════════════════
 class _GameSelectionDialog extends StatefulWidget {
   final String gameName;
@@ -660,7 +621,7 @@ class _GameSelectionDialogState extends State<_GameSelectionDialog> {
       final success = await EnergyManager.instance.useEnergy(amount: 10);
 
       if (success) {
-        widget.onStart();
+        widget.onStart(); // 🔊 sound called at the call site in _showSpecificGame
       } else {
         if (!mounted) return;
         _showAlert('Error', 'Something went wrong. Please try again.');
@@ -682,7 +643,10 @@ class _GameSelectionDialogState extends State<_GameSelectionDialog> {
         content: Text(message),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
+              onPressed: () {
+                SoundManager.instance.playClick(); // 🔊
+                Navigator.pop(ctx);
+              },
               child: const Text('OK')),
         ],
       ),
@@ -768,7 +732,7 @@ class _GameSelectionDialogState extends State<_GameSelectionDialog> {
                     isLoading: _isCheckingEnergy),
                 const SizedBox(height: 12),
                 _buildButton('RESCAN', _red, Icons.refresh,
-                    _isCheckingEnergy ? null : widget.onRescan),
+                    _isCheckingEnergy ? null : widget.onRescan), // 🔊 sound called at call site
               ],
             ),
           ],

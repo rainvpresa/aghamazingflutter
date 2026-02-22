@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/sound_manager.dart';
 
 // ─────────────────────────────────────────────
 //  LAYOUT HELPER
@@ -157,6 +158,7 @@ class _FpScreenState extends State<FpScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
+                      SoundManager.instance.playClick();
                       Navigator.of(context).pop();
                       Navigator.of(context).pop();
                     },
@@ -200,6 +202,7 @@ class _FpScreenState extends State<FpScreen> {
         },
         onTapUp: (_) {
           if (!_isBusy) {
+            SoundManager.instance.playClick();
             setState(() => _buttonPressed = false);
             _sendResetEmail();
           }
@@ -279,7 +282,10 @@ class _FpScreenState extends State<FpScreen> {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: GestureDetector(
-                          onTap: () => Navigator.of(context).pop(),
+                          onTap: () {
+                            SoundManager.instance.playClick();
+                            Navigator.of(context).pop();
+                          },
                           child: Image.asset(
                             'assets/images/pngs/btn_back.png',
                             width: maxW * 0.23,
