@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../services/userprofile_service.dart';
+import '../../services/player_stats_service.dart';
+import '../../widgets/game_quit_handler.dart';
 
 /// Number Match - 2048-style puzzle game
 /// Swipe to merge matching numbers!
@@ -13,7 +16,7 @@ class NumberMatchGameScreen extends StatefulWidget {
 }
 
 class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, GameQuitHandler {
   // Game state
   GameState _gameState = GameState.menu;
   int _score = 0;
@@ -34,6 +37,9 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
   SwipeDirection? _lastSwipeDirection;
   late AnimationController _swipeIndicatorController;
 
+  // Tile float animation
+  late AnimationController _floatController;
+
   @override
   void initState() {
     super.initState();
@@ -53,7 +59,13 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
   }
+
+  // ─────────────────────────── GAME LOGIC (UNTOUCHED) ───────────────────────────
 
   void _startGame() {
     _gameState = GameState.playing;
@@ -61,12 +73,8 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
     _level = 1;
     _highestTile = 0;
     _grid = _createEmptyGrid();
-
-    // Add 2 starting tiles
     _addRandomTile();
     _addRandomTile();
-
-    // Trigger rebuild to show tiles
     setState(() {});
   }
 
@@ -79,23 +87,15 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
 
   void _addRandomTile() {
     final emptyPositions = <Position>[];
-
     for (int row = 0; row < gridSize; row++) {
       for (int col = 0; col < gridSize; col++) {
-        if (_grid[row][col] == null) {
-          emptyPositions.add(Position(row, col));
-        }
+        if (_grid[row][col] == null) emptyPositions.add(Position(row, col));
       }
     }
-
     if (emptyPositions.isEmpty) return;
-
     final random = Random();
     final position = emptyPositions[random.nextInt(emptyPositions.length)];
-
-    // 90% chance of 2, 10% chance of 4
     final value = random.nextDouble() < 0.9 ? 2 : 4;
-
     _grid[position.row][position.col] = GridCell(
       value: value,
       row: position.row,
@@ -107,22 +107,14 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
 
   Future<void> _handleSwipe(SwipeDirection direction) async {
     if (_isAnimating || _gameState != GameState.playing) return;
-
     setState(() {
       _isAnimating = true;
       _lastSwipeDirection = direction;
     });
-
-    // Show swipe indicator
     _swipeIndicatorController.forward(from: 0);
-
-    // Store previous state for animation
     final previousGrid = _copyGrid();
-
     bool moved = false;
     int scoreGained = 0;
-
-    // Process the swipe
     switch (direction) {
       case SwipeDirection.left:
         for (int row = 0; row < gridSize; row++) {
@@ -132,7 +124,6 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
           _setRow(row, result.tiles);
         }
         break;
-
       case SwipeDirection.right:
         for (int row = 0; row < gridSize; row++) {
           final tiles = _getRow(row).reversed.toList();
@@ -142,7 +133,6 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
           _setRow(row, result.tiles.reversed.toList());
         }
         break;
-
       case SwipeDirection.up:
         for (int col = 0; col < gridSize; col++) {
           final result = _slideAndMerge(_getColumn(col), col, true, false);
@@ -151,7 +141,6 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
           _setColumn(col, result.tiles);
         }
         break;
-
       case SwipeDirection.down:
         for (int col = 0; col < gridSize; col++) {
           final tiles = _getColumn(col).reversed.toList();
@@ -162,25 +151,16 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
         }
         break;
     }
-
     if (moved) {
-      // Set previous positions for animation
       _setPreviousPositions(previousGrid);
-
-      // Animate slide
       await _slideController.forward(from: 0);
-
       setState(() {
         _score += scoreGained;
-
-        // Check for level up (every 500 points)
         final newLevel = (_score ~/ 500) + 1;
         if (newLevel > _level) {
           _level = newLevel;
           _showLevelUpDialog();
         }
-
-        // Clear merge flags and new flags
         for (int row = 0; row < gridSize; row++) {
           for (int col = 0; col < gridSize; col++) {
             if (_grid[row][col] != null) {
@@ -196,33 +176,18 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
           }
         }
       });
-
-      // Animate merge effect
-      if (scoreGained > 0) {
-        await _mergeController.forward(from: 0);
-      }
-
-      // Add new tile
-      setState(() {
-        _addRandomTile();
-      });
-
-      // Animate new tile
+      if (scoreGained > 0) await _mergeController.forward(from: 0);
+      setState(() { _addRandomTile(); });
       await _newTileController.forward(from: 0);
-
-      // Check game over
       if (!_hasValidMoves()) {
         await Future.delayed(const Duration(milliseconds: 500));
         _gameOver();
       }
     }
-
     setState(() => _isAnimating = false);
   }
 
-  List<GridCell?> _getRow(int row) {
-    return List.from(_grid[row]);
-  }
+  List<GridCell?> _getRow(int row) => List.from(_grid[row]);
 
   void _setRow(int row, List<GridCell?> tiles) {
     for (int col = 0; col < gridSize; col++) {
@@ -234,9 +199,8 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
     }
   }
 
-  List<GridCell?> _getColumn(int col) {
-    return List.generate(gridSize, (row) => _grid[row][col]);
-  }
+  List<GridCell?> _getColumn(int col) =>
+      List.generate(gridSize, (row) => _grid[row][col]);
 
   void _setColumn(int col, List<GridCell?> tiles) {
     for (int row = 0; row < gridSize; row++) {
@@ -249,33 +213,20 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
   }
 
   SlideResult _slideAndMerge(List<GridCell?> line, int lineIndex, bool isForward, bool isRow) {
-    // Remove nulls
     List<GridCell> tiles = line.where((cell) => cell != null).cast<GridCell>().toList();
-
-    // Check if line was already compact (no empty spaces before tiles)
     final originalPositions = <int>[];
     for (int i = 0; i < line.length; i++) {
-      if (line[i] != null) {
-        originalPositions.add(i);
-      }
+      if (line[i] != null) originalPositions.add(i);
     }
-
     bool moved = false;
     int scoreGained = 0;
     List<GridCell?> merged = [];
-
     int i = 0;
     while (i < tiles.length) {
       if (i + 1 < tiles.length && tiles[i].value == tiles[i + 1].value) {
-        // Merge!
         final newValue = tiles[i].value * 2;
         scoreGained += newValue;
-
-        // Track highest tile
-        if (newValue > _highestTile) {
-          _highestTile = newValue;
-        }
-
+        if (newValue > _highestTile) _highestTile = newValue;
         merged.add(GridCell(
           value: newValue,
           row: isRow ? lineIndex : merged.length,
@@ -283,7 +234,6 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
           id: '${tiles[i].id}_merged',
           isMerged: true,
         ));
-
         moved = true;
         i += 2;
       } else {
@@ -291,39 +241,21 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
         i++;
       }
     }
-
-    // Check if anything moved by comparing positions
-    if (merged.length != tiles.length) {
-      // Length changed means merge happened
-      moved = true;
-    } else if (merged.length != originalPositions.length) {
-      // Different number of tiles
+    if (merged.length != tiles.length || merged.length != originalPositions.length) {
       moved = true;
     } else {
-      // Check if tiles are in different positions
       for (int j = 0; j < merged.length; j++) {
-        if (originalPositions[j] != j) {
-          moved = true;
-          break;
-        }
+        if (originalPositions[j] != j) { moved = true; break; }
       }
     }
-
-    // Pad with nulls
-    while (merged.length < gridSize) {
-      merged.add(null);
-    }
-
+    while (merged.length < gridSize) merged.add(null);
     return SlideResult(merged, moved, scoreGained);
   }
 
   List<List<GridCell?>> _copyGrid() {
     return List.generate(
       gridSize,
-          (row) => List.generate(
-        gridSize,
-            (col) => _grid[row][col],
-      ),
+          (row) => List.generate(gridSize, (col) => _grid[row][col]),
     );
   }
 
@@ -331,7 +263,6 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
     for (int row = 0; row < gridSize; row++) {
       for (int col = 0; col < gridSize; col++) {
         if (_grid[row][col] != null) {
-          // Find where this tile came from
           for (int pRow = 0; pRow < gridSize; pRow++) {
             for (int pCol = 0; pCol < gridSize; pCol++) {
               if (previousGrid[pRow][pCol]?.id == _grid[row][col]!.id ||
@@ -348,30 +279,19 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
   }
 
   bool _hasValidMoves() {
-    // Check for empty cells
     for (int row = 0; row < gridSize; row++) {
       for (int col = 0; col < gridSize; col++) {
         if (_grid[row][col] == null) return true;
       }
     }
-
-    // Check for possible merges
     for (int row = 0; row < gridSize; row++) {
       for (int col = 0; col < gridSize; col++) {
         final value = _grid[row][col]?.value;
         if (value == null) continue;
-
-        // Check right
-        if (col < gridSize - 1 && _grid[row][col + 1]?.value == value) {
-          return true;
-        }
-        // Check down
-        if (row < gridSize - 1 && _grid[row + 1][col]?.value == value) {
-          return true;
-        }
+        if (col < gridSize - 1 && _grid[row][col + 1]?.value == value) return true;
+        if (row < gridSize - 1 && _grid[row + 1][col]?.value == value) return true;
       }
     }
-
     return false;
   }
 
@@ -403,19 +323,19 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
               const SizedBox(height: 20),
               Text(
                 'LEVEL $_level',
-                style: const TextStyle(
+                style: GoogleFonts.nunito(
                   fontSize: 36,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w900,
                   color: Colors.white,
                 ),
               ),
               const SizedBox(height: 10),
               Text(
                 'Score: $_score',
-                style: const TextStyle(
+                style: GoogleFonts.nunito(
                   fontSize: 20,
                   color: Colors.white,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 30),
@@ -424,13 +344,14 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                child: const Text(
+                child: Text(
                   'CONTINUE',
-                  style: TextStyle(
+                  style: GoogleFonts.nunito(
                     fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFFF6B6B),
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFFFF6B6B),
                   ),
                 ),
               ),
@@ -448,15 +369,21 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
 
   Future<void> _saveScore() async {
     try {
-      await UserProfileService().saveNumberMatchRewards(_score);
+      await UserProfileService().saveNumberMatchRewards(_score, _highestTile, _level);
     } catch (e) {
       debugPrint('Error saving score: $e');
     }
   }
 
-  void _returnToMenu() {
-    Navigator.pop(context);
+  void _onBackPressed() {
+    if (_gameState != GameState.playing || _score == 0) {
+      Navigator.pop(context);
+      return;
+    }
+    showQuitConfirmDialog(context, onConfirm: _gameOver);
   }
+
+  void _returnToMenu() => Navigator.pop(context);
 
   @override
   void dispose() {
@@ -464,241 +391,267 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
     _mergeController.dispose();
     _newTileController.dispose();
     _swipeIndicatorController.dispose();
+    _floatController.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFFFE5E5), // Soft pink
-              Color(0xFFE5F3FF), // Soft blue
-              Color(0xFFFFF5E5), // Soft peach
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: _gameState == GameState.menu
-              ? _buildMenuScreen()
-              : _gameState == GameState.playing
-              ? _buildGameScreen()
-              : _buildGameOverScreen(),
-        ),
-      ),
-    );
+  // ─────────────────────────── TILE COLORS (UNTOUCHED) ───────────────────────────
+
+  List<Color> _getColorForValue(int value) {
+    switch (value) {
+      case 2:    return [const Color(0xFF87CEEB), const Color(0xFF5FAFDB)];
+      case 4:    return [const Color(0xFFFF9999), const Color(0xFFFF6B6B)];
+      case 8:    return [const Color(0xFFFFB366), const Color(0xFFFF9933)];
+      case 16:   return [const Color(0xFFFFDD66), const Color(0xFFFFCC33)];
+      case 32:   return [const Color(0xFF77DD77), const Color(0xFF55CC55)];
+      case 64:   return [const Color(0xFFFF6B6B), const Color(0xFFEE5A6F)];
+      case 128:  return [const Color(0xFF6FEDD6), const Color(0xFF4FD1C5)];
+      case 256:  return [const Color(0xFFFFB84D), const Color(0xFFFF9F1C)];
+      case 512:  return [const Color(0xFFFF7AA2), const Color(0xFFFF5582)];
+      case 1024: return [const Color(0xFFB39DDB), const Color(0xFF9575CD)];
+      case 2048: return [const Color(0xFFFF6B6B), const Color(0xFF6B9FFF)];
+      default:   return [const Color(0xFFFF9999), const Color(0xFF87CEEB)];
+    }
   }
 
-  Widget _buildMenuScreen() {
-    return Center(
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+  // ─────────────────────────── BUILD ───────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _onBackPressed();
+      },
+      child: Scaffold(
+        body: Stack(
           children: [
-            const SizedBox(height: 20),
-
-            // Fun Title with Numbers
-            Container(
-              padding: const EdgeInsets.all(30),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF9999), Color(0xFF87CEEB), Color(0xFFFFDD66)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF9999).withOpacity(0.5),
-                    blurRadius: 25,
-                    spreadRadius: 5,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Fun number emojis
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text('2️⃣', style: TextStyle(fontSize: 32)),
-                      SizedBox(width: 8),
-                      Text('4️⃣', style: TextStyle(fontSize: 32)),
-                      SizedBox(width: 8),
-                      Text('8️⃣', style: TextStyle(fontSize: 32)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'NUMBER MATCH',
-                    style: TextStyle(
-                      fontSize: 38,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: 2,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black26,
-                          blurRadius: 10,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      'Swipe & Merge to 2048! 🎯',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            // Gradient background
+            const _GradientBackground(),
+            // Blobs
+            const _BlobLayer(),
+            // Safe area content
+            SafeArea(
+              child: _gameState == GameState.menu
+                  ? _buildMenuScreen()
+                  : _gameState == GameState.playing
+                  ? _buildGameScreen()
+                  : _buildGameOverScreen(),
             ),
-
-            const SizedBox(height: 40),
-
-            // How to Play Card
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 30),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF87CEEB), width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '📖',
-                        style: TextStyle(fontSize: 24),
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'HOW TO PLAY',
-                        style: TextStyle(
-                          color: Color(0xFFFF6B6B),
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  _buildInstructionRow('👆', 'Swipe to slide all tiles'),
-                  _buildInstructionRow('✨', 'Merge matching numbers (2+2=4)'),
-                  _buildInstructionRow('🎯', 'Keep combining to reach 2048!'),
-                  _buildInstructionRow('⚡', 'Game ends when board is full'),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 50),
-
-            // Start Button - Extra Fun
-            GestureDetector(
-              onTap: _startGame,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF87CEEB),
-                      Color(0xFF6B9FFF),
-                      Color(0xFF87CEEB),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.white, width: 4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF87CEEB).withOpacity(0.6),
-                      blurRadius: 20,
-                      spreadRadius: 5,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
-                    SizedBox(width: 8),
-                    Text(
-                      'START GAME',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 25),
-
-            // Back Button
-            TextButton.icon(
-              onPressed: _returnToMenu,
-              icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF6B9FFF), size: 24),
-              label: const Text(
-                'BACK TO MENU',
-                style: TextStyle(
-                  color: Color(0xFF6B9FFF),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInstructionRow(String emoji, String text) {
+  // ─────────────────────────── MENU SCREEN ───────────────────────────
+
+  Widget _buildMenuScreen() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
+
+        return Column(
+          children: [
+            // Top decorative tiles
+            _buildDecoTiles(w),
+
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Title block
+                  _buildTitleBlock(w),
+
+                  SizedBox(height: h * 0.03),
+
+                  // Score pills
+                  _buildScorePills(w),
+
+                  SizedBox(height: h * 0.025),
+
+                  // How to play card
+                  _buildHowToPlayCard(w),
+
+                  SizedBox(height: h * 0.035),
+
+                  // Start button
+                  _buildStartButton(w),
+
+                  SizedBox(height: h * 0.015),
+
+                  // Back button
+                  TextButton.icon(
+                    onPressed: _onBackPressed,
+                    icon: Icon(Icons.arrow_back_rounded,
+                        color: const Color(0xFF6d28d9), size: w * 0.055),
+                    label: Text(
+                      'BACK',
+                      style: GoogleFonts.nunito(
+                        color: const Color(0xFF6d28d9),
+                        fontSize: w * 0.038,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDecoTiles(double w) {
+    final labels = ['2', '4', '8', '16', '32'];
+    final colors = [
+      const Color(0xFF5eb9f0),
+      const Color(0xFF4cd6a0),
+      const Color(0xFFff7eb3),
+      const Color(0xFFffb347),
+      const Color(0xFFa78bfa),
+    ];
+    final tileSize = w * 0.13;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.symmetric(
+        vertical: w * 0.04,
+        horizontal: w * 0.04,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(labels.length, (i) {
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: w * 0.015),
+            child: AnimatedBuilder(
+              animation: _floatController,
+              builder: (context, child) {
+                final phase = (i * 0.3);
+                final val = sin((_floatController.value * 2 * pi) + phase);
+                return Transform.translate(
+                  offset: Offset(0, val * 5),
+                  child: child,
+                );
+              },
+              child: Container(
+                width: tileSize,
+                height: tileSize,
+                decoration: BoxDecoration(
+                  color: colors[i],
+                  borderRadius: BorderRadius.circular(tileSize * 0.22),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors[i].withOpacity(0.45),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  labels[i],
+                  style: GoogleFonts.nunito(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: tileSize * 0.38,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildTitleBlock(double w) {
+    return Column(
+      children: [
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Color(0xFF1a6fa8), Color(0xFF7c3aed), Color(0xFFdb2777)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ).createShader(bounds),
+          child: Text(
+            'NUMBER\nMATCH',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.nunito(
+              fontSize: w * 0.16,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              height: 0.95,
+              letterSpacing: -1,
+            ),
+          ),
+        ),
+        SizedBox(height: w * 0.015),
+        Text(
+          'Swipe & Merge to 2048!',
+          style: GoogleFonts.nunito(
+            fontSize: w * 0.042,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF6d28d9),
+            letterSpacing: 0.3,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScorePills(double w) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: w * 0.08),
       child: Row(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 24)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: Color(0xFF333333),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
+          Expanded(child: _buildScorePill('Points', _score.toString(), w)),
+          SizedBox(width: w * 0.04),
+          Expanded(child: _buildScorePill('Best Tile', _highestTile.toString(), w)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScorePill(String label, String value, double w) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        vertical: w * 0.035,
+        horizontal: w * 0.04,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.72),
+        borderRadius: BorderRadius.circular(w * 0.05),
+        border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF7c3aed).withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: GoogleFonts.nunito(
+              fontSize: w * 0.08,
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF1e1b4b),
+              height: 1,
+            ),
+          ),
+          SizedBox(height: w * 0.01),
+          Text(
+            label.toUpperCase(),
+            style: GoogleFonts.nunito(
+              fontSize: w * 0.028,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF6d28d9),
+              letterSpacing: 1.5,
             ),
           ),
         ],
@@ -706,77 +659,170 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
     );
   }
 
-  Widget _buildGameScreen() {
-    return Column(
-      children: [
-        _buildTopBar(),
-        const SizedBox(height: 10),
-        _buildSwipeIndicator(),
-        const SizedBox(height: 10),
-        Expanded(
-          child: Center(
-            child: GestureDetector(
-              onPanStart: (details) {},
-              onPanUpdate: (details) {},
-              onPanEnd: (details) {
-                final dx = details.velocity.pixelsPerSecond.dx;
-                final dy = details.velocity.pixelsPerSecond.dy;
-
-                if (dx.abs() > dy.abs()) {
-                  _handleSwipe(dx > 0 ? SwipeDirection.right : SwipeDirection.left);
-                } else if (dy.abs() > 100) {
-                  _handleSwipe(dy > 0 ? SwipeDirection.down : SwipeDirection.up);
-                }
-              },
-              child: _buildGrid(),
+  Widget _buildHowToPlayCard(double w) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: w * 0.07),
+      padding: EdgeInsets.all(w * 0.055),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.72),
+        borderRadius: BorderRadius.circular(w * 0.065),
+        border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF7c3aed).withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'HOW TO PLAY',
+            style: GoogleFonts.nunito(
+              fontSize: w * 0.03,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF7c3aed),
+              letterSpacing: 2,
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(20),
+          SizedBox(height: w * 0.03),
+          Text(
+            'Swipe to merge tiles and keep combining to reach the highest number! But careful — the game ends when the board is full.',
+            style: GoogleFonts.nunito(
+              fontSize: w * 0.042,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF374151),
+              height: 1.55,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStartButton(double w) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: w * 0.07),
+      child: SizedBox(
+        width: double.infinity,
+        child: GestureDetector(
+          onTap: _startGame,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            padding: EdgeInsets.symmetric(vertical: w * 0.045),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF87CEEB), width: 2),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF6d28d9), Color(0xFFdb2777)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.circular(w * 0.055),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
+                  color: const Color(0xFF6d28d9).withOpacity(0.38),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.swipe, color: Color(0xFF6B9FFF), size: 24),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Swipe to slide tiles. Match 2 numbers to merge!',
-                    style: TextStyle(
-                      color: Color(0xFF333333),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
+            alignment: Alignment.center,
+            child: Text(
+              'START GAME',
+              style: GoogleFonts.nunito(
+                fontSize: w * 0.058,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: 1,
+              ),
             ),
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  // ─────────────────────────── GAME SCREEN ───────────────────────────
+
+  Widget _buildGameScreen() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final h = constraints.maxHeight;
+        final w = constraints.maxWidth;
+        return Column(
+          children: [
+            _buildTopBar(),
+            SizedBox(height: h * 0.008),
+            _buildSwipeIndicator(),
+            SizedBox(height: h * 0.008),
+            Expanded(  // ← grid takes all remaining space
+              child: Center(
+                child: GestureDetector(
+                  onPanEnd: (details) {
+                    final dx = details.velocity.pixelsPerSecond.dx;
+                    final dy = details.velocity.pixelsPerSecond.dy;
+                    if (dx.abs() > dy.abs()) {
+                      _handleSwipe(dx > 0 ? SwipeDirection.right : SwipeDirection.left);
+                    } else if (dy.abs() > 100) {
+                      _handleSwipe(dy > 0 ? SwipeDirection.down : SwipeDirection.up);
+                    }
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: w * 0.05),
+                    child: _buildGrid(),
+                  ),
+                ),
+              ),
+            ),
+            _buildGameHint(w),
+            SizedBox(height: h * 0.012),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildGameHint(double w) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: w * 0.05),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: w * 0.03),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.72),
+          borderRadius: BorderRadius.circular(w * 0.05),
+          border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF7c3aed).withOpacity(0.07),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.swipe, color: const Color(0xFF6d28d9), size: w * 0.055),
+            SizedBox(width: w * 0.03),
+            Expanded(
+              child: Text(
+                'Swipe to slide tiles. Match 2 numbers to merge!',
+                style: GoogleFonts.nunito(
+                  color: const Color(0xFF374151),
+                  fontSize: w * 0.035,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildSwipeIndicator() {
-    if (_lastSwipeDirection == null) {
-      return const SizedBox(height: 40);
-    }
-
+    if (_lastSwipeDirection == null) return const SizedBox(height: 40);
     return AnimatedBuilder(
       animation: _swipeIndicatorController,
       builder: (context, child) {
@@ -791,31 +837,28 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF9999),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6d28d9), Color(0xFFdb2777)],
+                  ),
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFF9999).withOpacity(0.5),
+                      color: const Color(0xFF6d28d9).withOpacity(0.4),
                       blurRadius: 10,
-                      spreadRadius: 2,
                     ),
                   ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      _getSwipeIcon(_lastSwipeDirection!),
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 8),
+                    Icon(_getSwipeIcon(_lastSwipeDirection!), color: Colors.white, size: 20),
+                    const SizedBox(width: 6),
                     Text(
                       _getSwipeText(_lastSwipeDirection!),
-                      style: const TextStyle(
+                      style: GoogleFonts.nunito(
                         color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ],
@@ -830,75 +873,81 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
 
   Offset _getSwipeOffset(SwipeDirection direction) {
     switch (direction) {
-      case SwipeDirection.up: return const Offset(0, -1);
-      case SwipeDirection.down: return const Offset(0, 1);
-      case SwipeDirection.left: return const Offset(-1, 0);
+      case SwipeDirection.up:    return const Offset(0, -1);
+      case SwipeDirection.down:  return const Offset(0, 1);
+      case SwipeDirection.left:  return const Offset(-1, 0);
       case SwipeDirection.right: return const Offset(1, 0);
     }
   }
 
   IconData _getSwipeIcon(SwipeDirection direction) {
     switch (direction) {
-      case SwipeDirection.up: return Icons.arrow_upward;
-      case SwipeDirection.down: return Icons.arrow_downward;
-      case SwipeDirection.left: return Icons.arrow_back;
+      case SwipeDirection.up:    return Icons.arrow_upward;
+      case SwipeDirection.down:  return Icons.arrow_downward;
+      case SwipeDirection.left:  return Icons.arrow_back;
       case SwipeDirection.right: return Icons.arrow_forward;
     }
   }
 
   String _getSwipeText(SwipeDirection direction) {
     switch (direction) {
-      case SwipeDirection.up: return 'UP';
-      case SwipeDirection.down: return 'DOWN';
-      case SwipeDirection.left: return 'LEFT';
+      case SwipeDirection.up:    return 'UP';
+      case SwipeDirection.down:  return 'DOWN';
+      case SwipeDirection.left:  return 'LEFT';
       case SwipeDirection.right: return 'RIGHT';
     }
   }
 
   Widget _buildGrid() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final gridPadding = 16.0;
-    final cellSize = (screenWidth - (gridPadding * 2) - (gridSize * 8)) / gridSize;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final available = constraints.maxWidth;
+        const gap = 8.0;
+        const padding = 12.0;
+        const borderWidth = 1.5;
+        final inner = available - borderWidth * 2;  // account for border
+        final cellSize = ((inner - padding * 2 - gap * gridSize) / gridSize).floorToDouble();
 
-    return Container(
-      padding: EdgeInsets.all(gridPadding),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+        return Container(
+          clipBehavior: Clip.hardEdge,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.72),
+            borderRadius: BorderRadius.circular(available * 0.06),
+            border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF7c3aed).withOpacity(0.1),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(gridSize, (row) {
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(gridSize, (col) {
-              return _buildCell(row, col, cellSize);
+          padding: const EdgeInsets.all(padding),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(gridSize, (row) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(gridSize, (col) {
+                  return _buildCell(row, col, cellSize);
+                }),
+              );
             }),
-          );
-        }),
-      ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildCell(int row, int col, double size) {
     final cell = _grid[row][col];
-
     return Container(
       width: size,
       height: size,
-      margin: const EdgeInsets.all(4),
+      margin: const EdgeInsets.all(4.0),
       decoration: BoxDecoration(
-        color: cell == null
-            ? const Color(0xFFE8E8E8)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        color: cell == null ? const Color(0xFFE8DFF5) : Colors.transparent,
+        borderRadius: BorderRadius.circular(size * 0.18),
       ),
       child: cell != null ? _buildTile(cell, size) : null,
     );
@@ -912,7 +961,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
           end: Alignment.bottomRight,
           colors: _getColorForValue(cell.value),
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(size * 0.18),
         boxShadow: [
           BoxShadow(
             color: _getColorForValue(cell.value)[0].withOpacity(0.5),
@@ -924,30 +973,29 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
       child: Center(
         child: Text(
           cell.value.toString(),
-          style: TextStyle(
-            fontSize: cell.value >= 100 ? size * 0.35 : size * 0.45,
-            fontWeight: FontWeight.bold,
+          style: GoogleFonts.nunito(
+            fontSize: cell.value >= 1000
+                ? size * 0.28
+                : cell.value >= 100
+                ? size * 0.35
+                : size * 0.42,
+            fontWeight: FontWeight.w900,
             color: Colors.white,
           ),
         ),
       ),
     );
 
-    // Animate new tiles
     if (cell.isNew && _newTileController.value > 0 && _newTileController.value < 1) {
       return AnimatedBuilder(
         animation: _newTileController,
         builder: (context, child) {
           final scale = Curves.elasticOut.transform(_newTileController.value);
-          return Transform.scale(
-            scale: scale,
-            child: tileContent,
-          );
+          return Transform.scale(scale: scale, child: tileContent);
         },
       );
     }
 
-    // Animate sliding tiles
     if (cell.previousRow != null && cell.previousCol != null) {
       return AnimatedBuilder(
         animation: _slideController,
@@ -955,16 +1003,12 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
           final progress = Curves.easeOut.transform(_slideController.value);
           final rowDiff = cell.row - cell.previousRow!;
           final colDiff = cell.col - cell.previousCol!;
-
           final offsetX = -colDiff * (1 - progress) * (size + 8);
           final offsetY = -rowDiff * (1 - progress) * (size + 8);
-
           return Transform.translate(
             offset: Offset(offsetX, offsetY),
             child: Transform.scale(
-              scale: cell.isMerged
-                  ? 1.0 + (0.2 * (1 - progress))
-                  : 1.0,
+              scale: cell.isMerged ? 1.0 + (0.2 * (1 - progress)) : 1.0,
               child: tileContent,
             ),
           );
@@ -975,299 +1019,280 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
     return tileContent;
   }
 
-  List<Color> _getColorForValue(int value) {
-    switch (value) {
-      case 2:
-        return [const Color(0xFF87CEEB), const Color(0xFF5FAFDB)]; // Sky blue
-      case 4:
-        return [const Color(0xFFFF9999), const Color(0xFFFF6B6B)]; // Coral red
-      case 8:
-        return [const Color(0xFFFFB366), const Color(0xFFFF9933)]; // Orange
-      case 16:
-        return [const Color(0xFFFFDD66), const Color(0xFFFFCC33)]; // Yellow
-      case 32:
-        return [const Color(0xFF77DD77), const Color(0xFF55CC55)]; // Green
-      case 64:
-        return [const Color(0xFFFF6B6B), const Color(0xFFEE5A6F)]; // Deep coral
-      case 128:
-        return [const Color(0xFF6FEDD6), const Color(0xFF4FD1C5)]; // Turquoise
-      case 256:
-        return [const Color(0xFFFFB84D), const Color(0xFFFF9F1C)]; // Gold
-      case 512:
-        return [const Color(0xFFFF7AA2), const Color(0xFFFF5582)]; // Pink
-      case 1024:
-        return [const Color(0xFFB39DDB), const Color(0xFF9575CD)]; // Purple
-      case 2048:
-        return [const Color(0xFFFF6B6B), const Color(0xFF6B9FFF)]; // Red-Blue gradient
-      default:
-        return [const Color(0xFFFF9999), const Color(0xFF87CEEB)]; // Default gradient
-    }
-  }
+  // ─────────────────────────── TOP BAR ───────────────────────────
 
   Widget _buildTopBar() {
+    return LayoutBuilder(builder: (context, constraints) {
+      final w = constraints.maxWidth;
+      return Padding(
+        padding: EdgeInsets.symmetric(horizontal: w * 0.04, vertical: w * 0.03),
+        child: Row(
+          children: [
+            // Back button
+            GestureDetector(
+              onTap: _onBackPressed,
+              child: Container(
+                padding: EdgeInsets.all(w * 0.025),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.72),
+                  borderRadius: BorderRadius.circular(w * 0.03),
+                  border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.5),
+                ),
+                child: Icon(Icons.arrow_back_rounded,
+                    color: const Color(0xFF6d28d9), size: w * 0.055),
+              ),
+            ),
+            SizedBox(width: w * 0.025),
+            Expanded(child: _buildStatPill('SCORE', _score.toString(), const Color(0xFF6d28d9), w)),
+            SizedBox(width: w * 0.025),
+            Expanded(child: _buildStatPill('BEST', _highestTile.toString(), const Color(0xFFdb2777), w)),
+            SizedBox(width: w * 0.025),
+            Expanded(child: _buildStatPill('LVL', _level.toString(), const Color(0xFF059669), w)),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildStatPill(String label, String value, Color color, double w) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      padding: EdgeInsets.symmetric(vertical: w * 0.025, horizontal: w * 0.02),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(w * 0.03),
+        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildStatBox('SCORE', _score.toString(), const Color(0xFFFF9F66)), // Bright orange
-          _buildStatBox('BEST TILE', _highestTile.toString(), const Color(0xFF6B9FFF)), // Bright blue
-          _buildStatBox('LEVEL', _level.toString(), const Color(0xFF66DD99)), // Bright green
+          Text(
+            label,
+            style: GoogleFonts.nunito(
+              fontSize: w * 0.026,
+              fontWeight: FontWeight.w800,
+              color: color,
+              letterSpacing: 1,
+            ),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.nunito(
+              fontSize: w * 0.055,
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF1e1b4b),
+              height: 1.1,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatBox(String label, String value, Color color) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              color.withOpacity(0.9),
-              color.withOpacity(0.7),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // ─────────────────────────── GAME OVER SCREEN ───────────────────────────
 
   Widget _buildGameOverScreen() {
     final isWinner = _highestTile >= 2048;
 
-    return Center(
-      child: SingleChildScrollView(
+    return LayoutBuilder(builder: (context, constraints) {
+      final w = constraints.maxWidth;
+      final h = constraints.maxHeight;
+
+      return SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+          horizontal: w * 0.07,
+          vertical: h * 0.03,
+        ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Fun emoji/icon at top
+            // Icon
             Container(
-              width: 120,
-              height: 120,
+              width: w * 0.24,
+              height: w * 0.24,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
                   colors: isWinner
                       ? [const Color(0xFFFFD700), const Color(0xFFFFA500)]
-                      : [const Color(0xFFFF9999), const Color(0xFFFF6B6B)],
+                      : [const Color(0xFF6d28d9), const Color(0xFFdb2777)],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: (isWinner ? const Color(0xFFFFD700) : const Color(0xFFFF9999))
-                        .withOpacity(0.5),
+                    color: (isWinner
+                        ? const Color(0xFFFFD700)
+                        : const Color(0xFF6d28d9)).withOpacity(0.45),
                     blurRadius: 30,
-                    spreadRadius: 10,
+                    spreadRadius: 8,
                   ),
                 ],
               ),
-              child: Center(
-                child: Text(
-                  isWinner ? '🎉' : '😢',
-                  style: const TextStyle(fontSize: 60),
+              alignment: Alignment.center,
+              child: Icon(
+                isWinner ? Icons.emoji_events_rounded : Icons.sentiment_dissatisfied_rounded,
+                color: Colors.white,
+                size: w * 0.12,
+              ),
+            ),
+
+            SizedBox(height: h * 0.02),
+
+            // Title
+            ShaderMask(
+              shaderCallback: (bounds) => LinearGradient(
+                colors: isWinner
+                    ? [const Color(0xFFFFD700), const Color(0xFFFFA500)]
+                    : [const Color(0xFF6d28d9), const Color(0xFFdb2777)],
+              ).createShader(bounds),
+              child: Text(
+                isWinner ? 'YOU WIN!' : 'GAME OVER',
+                style: GoogleFonts.nunito(
+                  fontSize: w * 0.11,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 1,
                 ),
               ),
             ),
 
-            const SizedBox(height: 30),
+            SizedBox(height: h * 0.02),
 
-            // Game Over/You Win Card
+            // Score + tile + level all in one card
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 30),
-              padding: const EdgeInsets.all(30),
+              width: double.infinity,
+              padding: EdgeInsets.all(w * 0.06),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(
-                  color: isWinner ? const Color(0xFFFFD700) : const Color(0xFFFF9999),
-                  width: 4,
-                ),
+                color: Colors.white.withOpacity(0.78),
+                borderRadius: BorderRadius.circular(w * 0.07),
+                border: Border.all(color: Colors.white.withOpacity(0.9), width: 2),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
+                    color: const Color(0xFF7c3aed).withOpacity(0.1),
                     blurRadius: 30,
-                    spreadRadius: 5,
                     offset: const Offset(0, 10),
                   ),
                 ],
               ),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Title
-                  Text(
-                    isWinner ? 'YOU WIN!' : 'GAME OVER',
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w900,
-                      color: isWinner ? const Color(0xFFFFD700) : const Color(0xFFFF6B6B),
-                      letterSpacing: 2,
-                      shadows: [
-                        Shadow(
-                          color: (isWinner ? const Color(0xFFFFD700) : const Color(0xFFFF6B6B))
-                              .withOpacity(0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  // Score Container
+                  // Score block
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(
+                        vertical: h * 0.02, horizontal: w * 0.04),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFF87CEEB),
-                          Color(0xFFB4E7FF),
-                        ],
+                        colors: [Color(0xFF6d28d9), Color(0xFFdb2777)],
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFF6B9FFF),
-                        width: 3,
-                      ),
+                      borderRadius: BorderRadius.circular(w * 0.05),
                     ),
                     child: Column(
                       children: [
-                        const Text(
-                          '✨ FINAL SCORE ✨',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _score.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 64,
-                            fontWeight: FontWeight.w900,
-                            height: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '🏆 Highest: $_highestTile',
-                            style: const TextStyle(
+                        Text('FINAL SCORE',
+                            style: GoogleFonts.nunito(
+                              color: Colors.white70,
+                              fontSize: w * 0.032,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 2,
+                            )),
+                        SizedBox(height: h * 0.005),
+                        Text(_score.toString(),
+                            style: GoogleFonts.nunito(
                               color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                              fontSize: w * 0.16,
+                              fontWeight: FontWeight.w900,
+                              height: 1,
+                            )),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  SizedBox(height: h * 0.015),
 
-                  // Level Badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF66DD99), Color(0xFF55CC88)],
+                  // Highest tile + level in a row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                              vertical: h * 0.015, horizontal: w * 0.03),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFdb2777).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(w * 0.04),
+                            border: Border.all(
+                                color: const Color(0xFFdb2777).withOpacity(0.3),
+                                width: 1.5),
+                          ),
+                          child: Column(
+                            children: [
+                              Text('BEST TILE',
+                                  style: GoogleFonts.nunito(
+                                    color: const Color(0xFFdb2777),
+                                    fontSize: w * 0.028,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.5,
+                                  )),
+                              Text(_highestTile.toString(),
+                                  style: GoogleFonts.nunito(
+                                    color: const Color(0xFF1e1b4b),
+                                    fontSize: w * 0.09,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.1,
+                                  )),
+                            ],
+                          ),
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(25),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF66DD99).withOpacity(0.4),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          '⚡',
-                          style: TextStyle(fontSize: 20),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Level $_level',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                      SizedBox(width: w * 0.03),
+                      Expanded(
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                              vertical: h * 0.015, horizontal: w * 0.03),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF059669).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(w * 0.04),
+                            border: Border.all(
+                                color: const Color(0xFF059669).withOpacity(0.3),
+                                width: 1.5),
+                          ),
+                          child: Column(
+                            children: [
+                              Text('LEVEL',
+                                  style: GoogleFonts.nunito(
+                                    color: const Color(0xFF059669),
+                                    fontSize: w * 0.028,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.5,
+                                  )),
+                              Text(_level.toString(),
+                                  style: GoogleFonts.nunito(
+                                    color: const Color(0xFF1e1b4b),
+                                    fontSize: w * 0.09,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.1,
+                                  )),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
 
-                  const SizedBox(height: 35),
+                  SizedBox(height: h * 0.02),
 
                   // Buttons
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildGameOverButton(
-                        'PLAY AGAIN',
-                        const Color(0xFF87CEEB),
-                        Icons.refresh_rounded,
-                        _startGame,
+                      Expanded(
+                        child: _buildGameOverBtn(
+                          'PLAY AGAIN', Icons.refresh_rounded,
+                          const Color(0xFF6d28d9), _startGame, w,
+                        ),
                       ),
-                      const SizedBox(width: 12),
-                      _buildGameOverButton(
-                        'MENU',
-                        const Color(0xFFFF9999),
-                        Icons.home_rounded,
-                        _returnToMenu,
+                      SizedBox(width: w * 0.04),
+                      Expanded(
+                        child: _buildGameOverBtn(
+                          'MENU', Icons.home_rounded,
+                          const Color(0xFFdb2777), _returnToMenu, w,
+                        ),
                       ),
                     ],
                   ),
@@ -1275,54 +1300,43 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
               ),
             ),
 
-            const SizedBox(height: 20),
+            SizedBox(height: h * 0.03),
           ],
         ),
-      ),
-    );
+      );
+    });
   }
 
-  Widget _buildGameOverButton(
-      String text,
-      Color color,
-      IconData icon,
-      VoidCallback onTap,
-      ) {
+  Widget _buildGameOverBtn(
+      String text, IconData icon, Color color, VoidCallback onTap, double w) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: EdgeInsets.symmetric(vertical: w * 0.038),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              color,
-              color.withOpacity(0.8),
-            ],
+            colors: [color, color.withOpacity(0.8)],
           ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white, width: 3),
+          borderRadius: BorderRadius.circular(w * 0.045),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.4),
-              blurRadius: 12,
-              spreadRadius: 2,
+              color: color.withOpacity(0.35),
+              blurRadius: 14,
               offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 24),
-            const SizedBox(width: 8),
+            Icon(icon, color: Colors.white, size: w * 0.055),
+            SizedBox(width: w * 0.02),
             Text(
               text,
-              style: const TextStyle(
+              style: GoogleFonts.nunito(
                 color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+                fontSize: w * 0.038,
+                fontWeight: FontWeight.w900,
                 letterSpacing: 0.5,
               ),
             ),
@@ -1333,7 +1347,86 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
   }
 }
 
-// Models
+// ─────────────────────────── BACKGROUND WIDGETS ───────────────────────────
+
+class _GradientBackground extends StatelessWidget {
+  const _GradientBackground();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFa8edea),
+            Color(0xFFb8d4f5),
+            Color(0xFFe0b8f5),
+            Color(0xFFf9d4a0),
+            Color(0xFFf9b8b8),
+          ],
+          stops: [0.0, 0.2, 0.45, 0.70, 1.0],
+        ),
+      ),
+    );
+  }
+}
+
+class _BlobLayer extends StatelessWidget {
+  const _BlobLayer();
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    return Stack(
+      children: [
+        Positioned(
+          top: -size.width * 0.1,
+          left: -size.width * 0.15,
+          child: _Blob(size: size.width * 0.6, color: const Color(0xFF7ecfff)),
+        ),
+        Positioned(
+          bottom: -size.width * 0.08,
+          right: -size.width * 0.12,
+          child: _Blob(size: size.width * 0.55, color: const Color(0xFFffb3d9)),
+        ),
+        Positioned(
+          top: size.height * 0.4,
+          left: size.width * 0.5,
+          child: _Blob(size: size.width * 0.38, color: const Color(0xFFffe08a)),
+        ),
+      ],
+    );
+  }
+}
+
+class _Blob extends StatelessWidget {
+  final double size;
+  final Color color;
+  const _Blob({required this.size, required this.color});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withOpacity(0.45),
+      ),
+      child: BackdropFilter(
+        filter: const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color.withOpacity(0.0),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────── MODELS (UNTOUCHED) ───────────────────────────
+
 class GridCell {
   final int value;
   int row;
@@ -1372,24 +1465,19 @@ class SlideResult {
 enum SwipeDirection { up, down, left, right }
 enum GameState { menu, playing, gameOver }
 
-// Replace the extension at the bottom
 extension NumberMatchScore on UserProfileService {
-  Future<void> saveNumberMatchRewards(int score) async {
+  Future<void> saveNumberMatchRewards(int score, int highestTile, int level) async {
     try {
-      // Coins: 1 coin per 10 points
       final coinsEarned = (score / 10).floor().clamp(0, 999);
-
-      await addCoins(
-        amount: coinsEarned,
-        reason: 'Number Match Score: $score',
+      await addCoins(amount: coinsEarned, reason: 'Number Match Score: $score');
+      final bool won = highestTile >= 2048;
+      await updateGameStats(gamesPlayed: 1, gamesWon: won ? 1 : 0, totalScore: score);
+      await PlayerStatsService().saveNumberMatchSession(
+        finalScore: score,
+        highestTile: highestTile,
+        levelReached: level,
+        coinsEarned: coinsEarned,
       );
-
-      await updateGameStats(
-        gamesPlayed: 1,
-        gamesWon: 1,
-        totalScore: score,
-      );
-
       debugPrint('✅ Number Match saved: $score pts, $coinsEarned coins');
     } catch (e) {
       debugPrint('❌ Error saving Number Match rewards: $e');

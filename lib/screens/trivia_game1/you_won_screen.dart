@@ -3,6 +3,7 @@ import '../../services/trivia_game_manager.dart';
 import '../../services/userprofile_service.dart';
 import '../mainmenu_screen.dart';
 import 'main_trivia_screen.dart';
+import '../../services/player_stats_service.dart';
 
 class YouWonScreen extends StatefulWidget {
   final int totalPoints;
@@ -100,6 +101,14 @@ class _YouWonScreenState extends State<YouWonScreen>
     } catch (e) {
       debugPrint('❌ Error saving rewards: $e');
     }
+
+    await PlayerStatsService().saveTriviaSession(
+      correctAnswers: _correct,
+      wrongAnswers: gm.wrongAnswers,   // already tracked in TriviaGameManager
+      totalQuestions: _total,
+      chancesUsed: gm.wrongAnswers,   // each wrong answer = 1 chance used
+      scoreEarned: _gemsEarned,
+    );
 
     gm.endGame();
     if (!mounted) return;

@@ -3,6 +3,7 @@ import '../../widgets/trivia_button.dart';
 import '../../widgets/confetti_effect.dart';
 import '../../services/trivia_game_manager.dart';
 import '../../services/trivia_service.dart';
+import '../../widgets/game_quit_handler.dart';
 import 'you_won_screen.dart';
 
 class MainTriviaScreen extends StatefulWidget {
@@ -13,7 +14,7 @@ class MainTriviaScreen extends StatefulWidget {
 }
 
 class _MainTriviaScreenState extends State<MainTriviaScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, GameQuitHandler {
   static const int _totalQuestions = 5;
   static const int _maxChances = 3;
   static const int _pointsPerCorrect = 50;
@@ -28,6 +29,7 @@ class _MainTriviaScreenState extends State<MainTriviaScreen>
   int _litStars = 0;
   int _totalPoints = 0;
   int _chancesLeft = _maxChances;
+  bool _answered = false;
 
   final List<AnimationController> _starControllers = [];
   final List<Animation<double>> _starScaleAnims = [];
@@ -104,16 +106,19 @@ class _MainTriviaScreenState extends State<MainTriviaScreen>
     final count = _current?.choices.length ?? 4;
     _answerStates = List.filled(count, AnswerState.idle);
     _chancesLeft = _maxChances;
+    _answered = false; // ← reset for next question
   }
 
   void _checkAnswer(int choiceIndex) {
     final question = _current;
     if (question == null) return;
+    if (_answered) return;
     if (_answerStates[choiceIndex] != AnswerState.idle) return;
 
     if (choiceIndex == question.correctIndex) {
-      TriviaGameManager.instance.recordCorrectAnswer();
+      TriviaGameManager.instance.recordCorrectAnswer(); // ← was missing
       setState(() {
+        _answered = true;
         _totalPoints += _pointsPerCorrect;
         _answerStates[choiceIndex] = AnswerState.correct;
         _showConfetti = true;
@@ -147,7 +152,6 @@ class _MainTriviaScreenState extends State<MainTriviaScreen>
             }
           }
         });
-
         Future.delayed(const Duration(milliseconds: 1200), () {
           if (!mounted) return;
           _goToNext();
@@ -165,13 +169,30 @@ class _MainTriviaScreenState extends State<MainTriviaScreen>
         _resetAnswerStates();
       });
     } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => YouWonScreen(totalPoints: _totalPoints),
-        ),
-      );
+      _endGame();
     }
+  }
+
+  void _endGame() {
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => YouWonScreen(totalPoints: _totalPoints),
+      ),
+    );
+  }
+
+  void _onBackPressed() {
+    if (_isLoading || _errorMessage != null) {
+      Navigator.pop(context);
+      return;
+    }
+
+    showQuitConfirmDialog(
+      context,
+      onConfirm: _endGame,
+    );
   }
 
   @override
@@ -253,268 +274,250 @@ class _MainTriviaScreenState extends State<MainTriviaScreen>
       _ => 'TRIVIA',
     };
 
-    return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final screenW = constraints.maxWidth;
-          final screenH = constraints.maxHeight;
-          final topPad = MediaQuery.of(context).padding.top;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _onBackPressed();
+      },
+      child: Scaffold(
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final screenW = constraints.maxWidth;
+            final screenH = constraints.maxHeight;
 
-          // ── Responsive font sizes ──────────────────────────────
-          final catFontSize = (screenW * 0.048).clamp(14.0, 22.0);
-          final qFontSize = (screenW * 0.052).clamp(17.0, 26.0);
-          final starSize = (screenW * 0.09).clamp(28.0, 45.0);
-          final btnHeight = (screenH * 0.085).clamp(50.0, 78.0);
+            final catFontSize = (screenW * 0.048).clamp(14.0, 22.0);
+            final qFontSize = (screenW * 0.052).clamp(17.0, 26.0);
+            final starSize = (screenW * 0.09).clamp(28.0, 45.0);
+            final btnHeight = (screenH * 0.085).clamp(50.0, 78.0);
 
-          return Stack(
-            children: [
-              // ── Background — NEVER shrinks, always covers ──────
-              Positioned.fill(
-                child: Image.asset(
-                  'assets/images/pngs/yellowbg.png',
-                  fit: BoxFit.cover,   // covers whole screen regardless of aspect ratio
-                  alignment: Alignment.center,
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    'assets/images/pngs/yellowbg.png',
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                  ),
                 ),
-              ),
 
-              // ── Main layout column ─────────────────────────────
-              SafeArea(
-                child: Column(
-                  children: [
-                    // ── TOP BAR (wood + stars) ───────────────────
-                    SizedBox(
-                      width: double.infinity,
-                      height: screenH * 0.17,
-                      child: Stack(
-                        children: [
-                          // Wood banner — covers the full top bar
-                          Positioned.fill(
-                            child: Image.asset(
-                              'assets/images/pngs/wood.png',
-                              fit: BoxFit.fill, // stretch to fill bar exactly
-                            ),
-                          ),
-                          // Back button
-                          Positioned(
-                            top: 4,
-                            left: 0,
-                            width: screenW * 0.20,
-                            height: screenH * 0.07,
-                            child: GestureDetector(
-                              onTap: () {
-                                TriviaGameManager.instance.reset();
-                                Navigator.pop(context);
-                              },
+                SafeArea(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        height: screenH * 0.17,
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
                               child: Image.asset(
-                                'assets/images/pngs/back_btn.png',
-                                fit: BoxFit.contain,
+                                'assets/images/pngs/wood.png',
+                                fit: BoxFit.fill,
                               ),
                             ),
-                          ),
-                          // Stars row
-                          Positioned(
-                            bottom: screenH * 0.01,
-                            left: 0,
-                            right: 0,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(_totalQuestions, (i) {
-                                final isLit = i < _litStars;
-                                return AnimatedBuilder(
-                                  animation: _starScaleAnims[i],
-                                  builder: (_, __) => Transform.scale(
-                                    scale: isLit
-                                        ? _starScaleAnims[i].value
-                                        : 1.0,
-                                    child: Padding(
-                                      padding: EdgeInsets.symmetric(
-                                          horizontal: screenW * 0.01),
-                                      child: Image.asset(
-                                        isLit
-                                            ? 'assets/images/pngs/yellow_star.png'
-                                            : 'assets/images/pngs/empty_star.png',
-                                        width: starSize,
-                                        height: starSize,
+                            Positioned(
+                              top: 4,
+                              left: 0,
+                              width: screenW * 0.20,
+                              height: screenH * 0.07,
+                              child: GestureDetector(
+                                onTap: _onBackPressed,
+                                child: Image.asset(
+                                  'assets/images/pngs/back_btn.png',
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: screenH * 0.01,
+                              left: 0,
+                              right: 0,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: List.generate(_totalQuestions, (i) {
+                                  final isLit = i < _litStars;
+                                  return AnimatedBuilder(
+                                    animation: _starScaleAnims[i],
+                                    builder: (_, __) => Transform.scale(
+                                      scale: isLit
+                                          ? _starScaleAnims[i].value
+                                          : 1.0,
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: screenW * 0.01),
+                                        child: Image.asset(
+                                          isLit
+                                              ? 'assets/images/pngs/yellow_star.png'
+                                              : 'assets/images/pngs/empty_star.png',
+                                          width: starSize,
+                                          height: starSize,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              }),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // ── POINTS + CHANCES ROW ─────────────────────
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: screenW * 0.06,
-                        vertical: screenH * 0.012,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.black45,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text('⭐ $_totalPoints pts',
-                                style: _ts(size: 14)),
-                          ),
-                          AnimatedBuilder(
-                            animation: _heartShakeAnim,
-                            builder: (_, __) => Transform.translate(
-                              offset: Offset(_heartShakeAnim.value, 0),
-                              child: Row(
-                                children: List.generate(_maxChances, (i) {
-                                  final isActive = i < _chancesLeft;
-                                  return Icon(
-                                    isActive
-                                        ? Icons.favorite
-                                        : Icons.favorite_border,
-                                    color: isActive
-                                        ? Colors.red
-                                        : Colors.white38,
-                                    size: 26,
                                   );
                                 }),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
 
-                    // ── QUESTION BOX ─────────────────────────────
-                    // Uses Expanded so it takes remaining space proportionally.
-                    Expanded(
-                      flex: 38, // ~38% of remaining height
-                      child: Padding(
+                      Padding(
                         padding: EdgeInsets.symmetric(
-                            horizontal: screenW * 0.06),
-                        child: Stack(
+                          horizontal: screenW * 0.06,
+                          vertical: screenH * 0.012,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            // Top decorative piece (header banner)
-                            Positioned(
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              height: screenH * 0.06,
-                              child: Image.asset(
-                                'assets/images/pngs/question_top.png',
-                                fit: BoxFit.fill,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black45,
+                                borderRadius: BorderRadius.circular(20),
                               ),
+                              child: Text('⭐ $_totalPoints pts',
+                                  style: _ts(size: 14)),
                             ),
-                            // Bottom body piece
-                            Positioned(
-                              top: screenH * 0.05,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              child: Image.asset(
-                                'assets/images/pngs/question_bottom.png',
-                                fit: BoxFit.fill,
-                              ),
-                            ),
-
-                            // ── Category label — centered inside question_top ──
-                            Positioned(
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              height: screenH * 0.06,
-                              child: Center(
-                                child: Text(
-                                  categoryLabel,
-                                  textAlign: TextAlign.center,
-                                  style: _ts(
-                                    size: catFontSize,
-                                    color: const Color(0xFFFFAD16),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            // ── Question text — centered inside question_bottom ──
-                            Positioned(
-                              top: screenH * 0.055, // just below the top banner
-                              left: screenW * 0.05,
-                              right: screenW * 0.05,
-                              bottom: 0,
-                              child: Center(
-                                child: SingleChildScrollView(
-                                  child: Text(
-                                    question.question,
-                                    textAlign: TextAlign.center,
-                                    style: _ts(size: qFontSize)
-                                        .copyWith(height: 1.3),
-                                  ),
+                            AnimatedBuilder(
+                              animation: _heartShakeAnim,
+                              builder: (_, __) => Transform.translate(
+                                offset: Offset(_heartShakeAnim.value, 0),
+                                child: Row(
+                                  children: List.generate(_maxChances, (i) {
+                                    final isActive = i < _chancesLeft;
+                                    return Icon(
+                                      isActive
+                                          ? Icons.favorite
+                                          : Icons.favorite_border,
+                                      color: isActive
+                                          ? Colors.red
+                                          : Colors.white38,
+                                      size: 26,
+                                    );
+                                  }),
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
 
-                    SizedBox(height: screenH * 0.015),
+                      Expanded(
+                        flex: 38,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: screenW * 0.06),
+                          child: Stack(
+                            children: [
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                height: screenH * 0.06,
+                                child: Image.asset(
+                                  'assets/images/pngs/question_top.png',
+                                  fit: BoxFit.fill,
+                                ),
+                              ),
+                              Positioned(
+                                top: screenH * 0.05,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                child: Image.asset(
+                                  'assets/images/pngs/question_bottom.png',
+                                  fit: BoxFit.fill,
+                                ),
+                              ),
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                height: screenH * 0.06,
+                                child: Center(
+                                  child: Text(
+                                    categoryLabel,
+                                    textAlign: TextAlign.center,
+                                    style: _ts(
+                                      size: catFontSize,
+                                      color: const Color(0xFFFFAD16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: screenH * 0.055,
+                                left: screenW * 0.05,
+                                right: screenW * 0.05,
+                                bottom: 0,
+                                child: Center(
+                                  child: SingleChildScrollView(
+                                    child: Text(
+                                      question.question,
+                                      textAlign: TextAlign.center,
+                                      style: _ts(size: qFontSize)
+                                          .copyWith(height: 1.3),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
 
-                    // ── ANSWER BUTTONS ────────────────────────────
-                    // Each button is in its own Expanded so they share space
-                    // evenly and never overflow, regardless of screen size.
-                    Expanded(
-                      flex: 48, // ~48% of remaining height
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: screenW * 0.06),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: List.generate(
-                            question.choices.length,
-                                (i) => SizedBox(
-                              width: double.infinity,
-                              height: btnHeight,
-                              child: TriviaButton(
-                                text: question.choices[i],
+                      SizedBox(height: screenH * 0.015),
+
+                      Expanded(
+                        flex: 48,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: screenW * 0.06),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: List.generate(
+                              question.choices.length,
+                                  (i) => SizedBox(
                                 width: double.infinity,
                                 height: btnHeight,
-                                state: _answerStates[i],
-                                onPressed: () => _checkAnswer(i),
+                                child: TriviaButton(
+                                  text: question.choices[i],
+                                  width: double.infinity,
+                                  height: btnHeight,
+                                  state: _answerStates[i],
+                                  onPressed: () => _checkAnswer(i),
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
 
-                    SizedBox(height: screenH * 0.015),
-                  ],
+                      SizedBox(height: screenH * 0.015),
+                    ],
+                  ),
                 ),
-              ),
 
-              // ── Confetti ──────────────────────────────────────
-              if (_showConfetti)
-                const ConfettiEffect(
-                    duration: Duration(milliseconds: 1000)),
+                if (_showConfetti)
+                  const ConfettiEffect(
+                      duration: Duration(milliseconds: 1000)),
 
-              // ── Good Job overlay ──────────────────────────────
-              if (_showGoodJob)
-                LayoutBuilder(builder: (ctx, cons) {
-                  return Center(
-                    child: Image.asset(
-                      'assets/images/pngs/GOOD JOB!.png',
-                      width: cons.maxWidth * 0.8,
-                      fit: BoxFit.contain,
-                    ),
-                  );
-                }),
-            ],
-          );
-        },
+                if (_showGoodJob)
+                  LayoutBuilder(builder: (ctx, cons) {
+                    return Center(
+                      child: Image.asset(
+                        'assets/images/pngs/GOOD JOB!.png',
+                        width: cons.maxWidth * 0.8,
+                        fit: BoxFit.contain,
+                      ),
+                    );
+                  }),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/energy_manager.dart';
 import '../services/userprofile_service.dart';
+import '../services/player_stats_service.dart';
 
 // ═══════════════════════════════════════════════════════════════
 // ENUMS
@@ -476,31 +477,48 @@ class _TicTacToeGameScreenState extends State<TicTacToeGameScreen> {
   void _finish(Player w, List<int> line) {
     if (_over) return;
     setState(() {
-      _over   = true;
-      _winner = w;
-      _winLine = line;
+      _over       = true;
+      _winner     = w;
+      _winLine    = line;
       _aiThinking = false;
     });
-    if (w == _me) _giveCoins();
-    // Small delay so player sees the winning board before dialog
+    _saveGameResult(w); // ← replaces if (w == _me) _giveCoins()
     Future.delayed(const Duration(milliseconds: 900), () {
       if (mounted) _showResult();
     });
   }
 
-  Future<void> _giveCoins() async {
+  Future<void> _saveGameResult(Player winner) async {
     try {
-      final coins = switch (widget.difficulty) {
+      final iWon  = winner == _me;
+      final isTie = winner == Player.none;
+
+      final String result = isTie ? 'tie' : iWon ? 'win' : 'loss';
+
+      final coins = iWon
+          ? switch (widget.difficulty) {
         Difficulty.easy   => 5,
         Difficulty.medium => 15,
         Difficulty.hard   => 30,
-      };
-      await UserProfileService()
-          .addCoins(amount: coins, reason: 'Won Tic Tac Toe');
-      await UserProfileService()
-          .updateGameStats(gamesPlayed: 1, gamesWon: 1);
+      }
+          : 0;
+
+      if (coins > 0) {
+        await UserProfileService()
+            .addCoins(amount: coins, reason: 'Won Tic Tac Toe');
+      }
+
+      await UserProfileService().updateGameStats(
+        gamesPlayed: 1,
+        gamesWon: iWon ? 1 : 0,
+      );
+
+      await PlayerStatsService().saveTicTacToeSession(
+        result: result,
+        scoreEarned: coins,
+      );
     } catch (e) {
-      debugPrint('Coin error: $e');
+      debugPrint('Game save error: $e');
     }
   }
 

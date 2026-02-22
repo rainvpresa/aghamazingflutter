@@ -429,12 +429,13 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   void _showFeedbackModal() async {
     final profile = await UserProfileService().getUserProfile();
     final username = profile?['displayName'] ?? 'Anonymous';
+    final userId = profile?['uid'] ?? '';  // ← ADD THIS (adjust key to match your profile model)
     if (!mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _FeedbackModal(username: username),
+      builder: (_) => _FeedbackModal(username: username, userId: userId), // ← PASS IT
     );
   }
 
@@ -965,7 +966,12 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 // ─────────────────────────────────────────────
 class _FeedbackModal extends StatefulWidget {
   final String username;
-  const _FeedbackModal({required this.username});
+  final String userId; // ✅ field
+
+  const _FeedbackModal({
+    required this.username,
+    required this.userId, // ✅ add this
+  });
 
   @override
   State<_FeedbackModal> createState() => _FeedbackModalState();
@@ -992,6 +998,7 @@ class _FeedbackModalState extends State<_FeedbackModal> {
 
     try {
       await FirebaseFirestore.instance.collection('chatbot_feedback').add({
+        'userId': widget.userId,
         'username': widget.username,
         'feedback': text,
         'rating': _rating,
