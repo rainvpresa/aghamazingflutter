@@ -89,7 +89,7 @@ class _TriviaButtonState extends State<TriviaButton>
             border: Border.all(color: Colors.white, width: 3),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha:0.4),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -115,7 +115,7 @@ class _TriviaButtonState extends State<TriviaButton>
                     fontWeight: FontWeight.w400,
                     shadows: [
                       Shadow(
-                        color: Colors.black.withOpacity(0.7),
+                        color: Colors.black.withValues(alpha:0.7),
                         offset: const Offset(2, 2),
                         blurRadius: 3,
                       ),

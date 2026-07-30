@@ -142,7 +142,7 @@ class _ConfettiPainter extends CustomPainter {
       path.lineTo(radius * 0.866, radius * 0.5);
       path.close();
 
-      paint.color = particle.color.withOpacity(1.0 - progress);
+      paint.color = particle.color.withValues(alpha:1.0 - progress);
       canvas.drawPath(path, paint);
 
       canvas.restore();

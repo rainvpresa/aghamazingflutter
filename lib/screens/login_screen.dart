@@ -24,7 +24,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loginPressed = false;
   bool _forgotHovered = false;
   bool _forgotPressed = false;
-  bool _registerHovered = false;
   bool _registerPressed = false;
 
   bool _isBusy = false;
@@ -113,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) Navigator.of(context).pop();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
               content: Text('Login failed: \$e'), backgroundColor: Colors.red),
         );
       }
@@ -138,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
       prefixIcon: Icon(icon),
       suffixIcon: suffix,
       filled: true,
-      fillColor: Colors.white.withOpacity(0.95),
+      fillColor: Colors.white.withValues(alpha: 0.95),
       contentPadding:
       const EdgeInsets.symmetric(vertical: 18.0, horizontal: 16.0),
       border: OutlineInputBorder(
@@ -243,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             _forgotPressed = false;
                                             Navigator.of(context).push(
                                               MaterialPageRoute(
-                                                  builder: (_) => FpScreen()),
+                                                  builder: (_) => const FpScreen()),
                                             );
                                           });
                                         },
@@ -283,42 +282,28 @@ class _LoginScreenState extends State<LoginScreen> {
                                           color: _secondaryTextColor,
                                           fontSize: 14),
                                     ),
-                                    MouseRegion(
-                                      cursor: SystemMouseCursors.click,
-                                      onEnter: (_) => setState(
-                                              () => _registerHovered = true),
-                                      onExit: (_) => setState(
-                                              () => _registerHovered = false),
-                                      child: GestureDetector(
-                                        behavior: HitTestBehavior.opaque,
-                                        onTapDown: (_) => setState(
-                                                () => _registerPressed = true),
-                                        onTapUp: (_) {
-                                          SoundManager.instance.playClick();
-                                          setState(() {
-                                            _registerPressed = false;
-                                            Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                  builder: (_) =>
-                                                  const RegisterScreen()),
-                                            );
-                                          });
-                                        },
-                                        onTapCancel: () => setState(
-                                                () => _registerPressed = false),
-                                        child: AnimatedDefaultTextStyle(
-                                          duration:
-                                          const Duration(milliseconds: 140),
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: _registerPressed
-                                                ? _linkPressedColor
-                                                : _linkColor,
-                                            decoration: TextDecoration.underline,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          child: const Text('Register Now'),
+                                    GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTapDown: (_) => setState(() => _registerPressed = true),
+                                      onTapUp: (_) {
+                                        SoundManager.instance.playClick();
+                                        setState(() {
+                                          _registerPressed = false;
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                                          );
+                                        });
+                                      },
+                                      onTapCancel: () => setState(() => _registerPressed = false),
+                                      child: AnimatedDefaultTextStyle(
+                                        duration: const Duration(milliseconds: 140),
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: _registerPressed ? _linkPressedColor : _linkColor,
+                                          decoration: TextDecoration.underline,
+                                          fontWeight: FontWeight.w600,
                                         ),
+                                        child: const Text('Register Now'),
                                       ),
                                     ),
                                   ],
@@ -364,7 +349,7 @@ class _LoginScreenState extends State<LoginScreen> {
         onTapCancel: () => setState(() => _loginPressed = false),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
-          transform: Matrix4.identity()..scale(scale),
+          transform: Matrix4.diagonal3Values(scale, scale, 1.0),
           curve: Curves.easeOut,
           height: 52,
           width: double.infinity,

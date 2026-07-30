@@ -196,9 +196,9 @@ class _ShimmerPainter extends CustomPainter {
     final paint = Paint()
       ..shader = LinearGradient(
         colors: [
-          Colors.white.withOpacity(0.0),
-          Colors.white.withOpacity(0.7),
-          Colors.white.withOpacity(0.0),
+          Colors.white.withValues(alpha:0.0),
+          Colors.white.withValues(alpha:0.7),
+          Colors.white.withValues(alpha:0.0),
         ],
         stops: const [0.0, 0.5, 1.0],
         begin: Alignment((cx - stripeW) / size.width * 2 - 1, 0),

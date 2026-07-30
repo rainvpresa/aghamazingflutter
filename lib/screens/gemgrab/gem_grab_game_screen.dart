@@ -4,10 +4,9 @@ import 'dart:async';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
-import '../../services/userprofile_service.dart';
-import '../../services/player_stats_service.dart';
 import '../../services/sound_manager.dart'; // 🔊 added
 import '../../widgets/game_quit_handler.dart';
+import '../../services/game_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  THEME TOKENS
@@ -30,8 +29,8 @@ class _GG {
   static const String fontFamily = 'LilitaOne';
 
   static List<BoxShadow> glow(Color c, {double spread = 4, double blur = 14}) => [
-    BoxShadow(color: c.withOpacity(0.75), blurRadius: blur, spreadRadius: spread),
-    BoxShadow(color: c.withOpacity(0.35), blurRadius: blur * 2.2, spreadRadius: spread * 0.5),
+    BoxShadow(color: c.withValues(alpha:0.75), blurRadius: blur, spreadRadius: spread),
+    BoxShadow(color: c.withValues(alpha:0.35), blurRadius: blur * 2.2, spreadRadius: spread * 0.5),
   ];
 
   static Border glowBorder(Color c, {double width = 2.5}) =>
@@ -47,21 +46,21 @@ class _GG {
     stops: [0.0, 0.55],
   );
 
-  static TextStyle get scoreLabel => TextStyle(
+  static TextStyle get scoreLabel => const TextStyle(
     fontFamily: fontFamily,
     color: white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 0.5,
-    shadows: const [Shadow(color: Color(0xAA000000), blurRadius: 4, offset: Offset(1, 2))],
+    shadows: [Shadow(color: Color(0xAA000000), blurRadius: 4, offset: Offset(1, 2))],
   );
 
-  static TextStyle get playsLabel => TextStyle(
+  static TextStyle get playsLabel => const TextStyle(
     fontFamily: fontFamily,
     color: white, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.4,
   );
 
-  static TextStyle get btnLabel => TextStyle(
+  static TextStyle get btnLabel => const TextStyle(
     fontFamily: fontFamily,
     color: white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1.5,
-    shadows: const [Shadow(color: Color(0x99000000), blurRadius: 4, offset: Offset(0, 3))],
+    shadows: [Shadow(color: Color(0x99000000), blurRadius: 4, offset: Offset(0, 3))],
   );
 }
 
@@ -131,7 +130,7 @@ class _GlossyPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(50),
-        gradient: _GG.panelGrad(_GG.panelBg.withOpacity(0.92), _GG.panelBg),
+        gradient: _GG.panelGrad(_GG.panelBg.withValues(alpha:0.92), _GG.panelBg),
         border: _GG.glowBorder(accent),
         boxShadow: _GG.glow(accent, blur: 12, spread: 1),
       ),
@@ -144,7 +143,7 @@ class _GlossyPill extends StatelessWidget {
         ),
         Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, color: iconColor, size: 18,
-              shadows: [Shadow(color: iconColor.withOpacity(0.8), blurRadius: 8)]),
+              shadows: [Shadow(color: iconColor.withValues(alpha:0.8), blurRadius: 8)]),
           const SizedBox(width: 7),
           Text(label, style: _GG.scoreLabel),
         ]),
@@ -159,7 +158,6 @@ class _ArcadeButton extends StatefulWidget {
   final Color top;
   final Color bottom;
   final Color shadow;
-  final double width;
   final IconData? icon;
 
   const _ArcadeButton({
@@ -167,7 +165,6 @@ class _ArcadeButton extends StatefulWidget {
     this.top    = _GG.green,
     this.bottom = _GG.greenDark,
     this.shadow = _GG.green,
-    this.width  = double.infinity,
     this.icon,
   });
 
@@ -188,7 +185,7 @@ class _ArcadeButtonState extends State<_ArcadeButton> {
         scale: _pressed ? 0.93 : 1.0,
         duration: const Duration(milliseconds: 80),
         child: Container(
-          width: widget.width,
+          width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(40),
@@ -198,13 +195,13 @@ class _ArcadeButtonState extends State<_ArcadeButton> {
             ),
             boxShadow: [
               BoxShadow(
-                color: widget.bottom.withOpacity(0.9),
+                color: widget.bottom.withValues(alpha:0.9),
                 blurRadius: 0, spreadRadius: 0,
                 offset: Offset(0, _pressed ? 1 : 5),
               ),
               ..._GG.glow(widget.shadow, blur: 18, spread: _pressed ? 0 : 2),
             ],
-            border: Border.all(color: _GG.white.withOpacity(0.25), width: 1.5),
+            border: Border.all(color: _GG.white.withValues(alpha:0.25), width: 1.5),
           ),
           child: Stack(alignment: Alignment.center, children: [
             Positioned(
@@ -215,7 +212,7 @@ class _ArcadeButtonState extends State<_ArcadeButton> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [_GG.white.withOpacity(0.32), Colors.transparent],
+                      colors: [_GG.white.withValues(alpha:0.32), Colors.transparent],
                     ),
                   ),
                 ),
@@ -225,7 +222,7 @@ class _ArcadeButtonState extends State<_ArcadeButton> {
                 children: [
                   if (widget.icon != null) ...[
                     Icon(widget.icon, color: _GG.white, size: 22,
-                        shadows: [Shadow(color: _GG.black.withOpacity(0.4), blurRadius: 4)]),
+                        shadows: [Shadow(color: _GG.black.withValues(alpha:0.4), blurRadius: 4)]),
                     const SizedBox(width: 10),
                   ],
                   Text(widget.label, style: _GG.btnLabel),
@@ -255,8 +252,8 @@ class _PlaysDots extends StatelessWidget {
             width: filled ? 12 : 10, height: filled ? 12 : 10,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: filled ? color : color.withOpacity(0.22),
-              border: Border.all(color: color.withOpacity(0.7), width: 1.5),
+              color: filled ? color : color.withValues(alpha:0.22),
+              border: Border.all(color: color.withValues(alpha:0.7), width: 1.5),
               boxShadow: filled ? _GG.glow(color, blur: 6, spread: 0) : null,
             ),
           ),
@@ -293,7 +290,7 @@ class _GemGrabDialog extends StatelessWidget {
             begin: Alignment.topLeft, end: Alignment.bottomRight,
             colors: [Color(0xFF2A1050), Color(0xFF14082A)],
           ),
-          border: Border.all(color: _GG.purple.withOpacity(0.6), width: 2),
+          border: Border.all(color: _GG.purple.withValues(alpha:0.6), width: 2),
           boxShadow: [
             ..._GG.glow(_GG.purple, blur: 30, spread: 4),
             const BoxShadow(color: Color(0xCC000000), blurRadius: 40, offset: Offset(0, 20)),
@@ -307,7 +304,7 @@ class _GemGrabDialog extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                    colors: [_GG.white.withOpacity(0.08), Colors.transparent],
+                    colors: [_GG.white.withValues(alpha:0.08), Colors.transparent],
                   ),
                 ),
               ),
@@ -319,8 +316,8 @@ class _GemGrabDialog extends StatelessWidget {
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: _GG.panelGrad(iconColor.withOpacity(0.25), iconColor.withOpacity(0.08)),
-                    border: Border.all(color: iconColor.withOpacity(0.6), width: 2),
+                    gradient: _GG.panelGrad(iconColor.withValues(alpha:0.25), iconColor.withValues(alpha:0.08)),
+                    border: Border.all(color: iconColor.withValues(alpha:0.6), width: 2),
                     boxShadow: _GG.glow(iconColor, blur: 18, spread: 2),
                   ),
                   child: Icon(icon, color: iconColor, size: 44,
@@ -331,7 +328,7 @@ class _GemGrabDialog extends StatelessWidget {
                   fontFamily: _GG.fontFamily,
                   color: titleColor, fontSize: 24, fontWeight: FontWeight.w900,
                   letterSpacing: 1.5,
-                  shadows: [Shadow(color: titleColor.withOpacity(0.5), blurRadius: 12)],
+                  shadows: [Shadow(color: titleColor.withValues(alpha:0.5), blurRadius: 12)],
                 )),
                 const SizedBox(height: 18),
                 content,
@@ -362,17 +359,17 @@ class _GemGrabLogoFallback extends StatelessWidget {
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.diamond_rounded, color: _GG.pinkLight, size: fontSize,
-            shadows: [Shadow(color: _GG.pink, blurRadius: 10)]),
+            shadows: const [Shadow(color: _GG.pink, blurRadius: 10)]),
         const SizedBox(width: 10),
         Text('GEM GRAB!', style: TextStyle(
           fontFamily: _GG.fontFamily,
           color: _GG.white, fontSize: fontSize, fontWeight: FontWeight.w900,
           letterSpacing: 2,
-          shadows: [Shadow(color: _GG.pink.withOpacity(0.8), blurRadius: 12)],
+          shadows: [Shadow(color: _GG.pink.withValues(alpha:0.8), blurRadius: 12)],
         )),
         const SizedBox(width: 10),
         Icon(Icons.diamond_rounded, color: _GG.gold, size: fontSize * 0.8,
-            shadows: [Shadow(color: _GG.gold, blurRadius: 10)]),
+            shadows: const [Shadow(color: _GG.gold, blurRadius: 10)]),
       ]),
     );
   }
@@ -390,14 +387,14 @@ class _WarningChip extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         gradient: _GG.panelGrad(
-            _GG.orange.withOpacity(0.22), _GG.orange.withOpacity(0.08)),
-        border: Border.all(color: _GG.orange.withOpacity(0.7), width: 2),
+            _GG.orange.withValues(alpha:0.22), _GG.orange.withValues(alpha:0.08)),
+        border: Border.all(color: _GG.orange.withValues(alpha:0.7), width: 2),
         boxShadow: _GG.glow(_GG.orange, blur: 10, spread: 0),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.flash_on_rounded, color: _GG.orange,
             size: compact ? 16 : 20,
-            shadows: [Shadow(color: _GG.orange, blurRadius: 8)]),
+            shadows: const [Shadow(color: _GG.orange, blurRadius: 8)]),
         const SizedBox(width: 6),
         Text('Watch out! Gems fall\nat different speeds!',
             textAlign: TextAlign.center,
@@ -414,7 +411,7 @@ class _WarningChip extends StatelessWidget {
 //  MAIN SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 class GemGrabGameScreen extends StatefulWidget {
-  const GemGrabGameScreen({Key? key}) : super(key: key);
+  const GemGrabGameScreen({super.key});
 
   @override
   State<GemGrabGameScreen> createState() => _GemGrabGameScreenState();
@@ -438,7 +435,6 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
   late AnimationController _pulseController;
   late AnimationController _floatController;
   late Animation<double>   _pulseAnimation;
-  late Animation<double>   _floatAnimation;
 
   @override
   void initState() {
@@ -460,8 +456,6 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
     _floatController = AnimationController(
         duration: const Duration(milliseconds: 2000), vsync: this)
       ..repeat(reverse: true);
-    _floatAnimation = Tween<double>(begin: -5, end: 5).animate(
-        CurvedAnimation(parent: _floatController, curve: Curves.easeInOut));
   }
 
   @override
@@ -472,21 +466,6 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
     // 🔊 No music call here — menu music is already playing and continues
     // seamlessly back in the main menu without any restart.
     super.dispose();
-  }
-
-  Future<void> _resetPlaysDebug() async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateTime.now().toString().substring(0, 10);
-    await prefs.setString('gem_grab_date', today);
-    await prefs.setInt('gem_grab_plays', 3);
-    setState(() => playsRemaining = 3);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('✅ Plays reset to 3!'),
-        backgroundColor: Colors.green,
-        duration: Duration(seconds: 2),
-      ));
-    }
   }
 
   Future<void> loadPlaysRemaining() async {
@@ -602,16 +581,17 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
     final gemsEarned  = score;
 
     try {
-      final svc = UserProfileService();
-      await svc.addCoins(amount: coinsEarned, reason: 'Gem Grab game - Score: $score');
-      await svc.updateGameStats(gamesPlayed: 1, totalScore: gemsEarned);
-
-      await PlayerStatsService().saveGemGrabSession(
-        gemsCollected: score,
+      // Single call to Laravel backend — handles stats, coins, and session logging!
+      await GameSessionService().saveGemGrabSession(
+        scoreEarned: score,
+        gemsCollected: gemsEarned,
         coinsEarned: coinsEarned,
         playsRemaining: playsRemaining,
+        durationSeconds: 30,
       );
-    } catch (e) { debugPrint('❌ $e'); }
+    } catch (e) {
+      debugPrint('❌ Error saving Gem Grab session: $e');
+    }
 
     if (mounted) _showGameOverDialog(coinsEarned, gemsEarned);
   }
@@ -637,7 +617,7 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
           _dialogStat('+Gems',       '$gemsEarned', Icons.diamond,          _GG.purple),
           const SizedBox(height: 16),
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Text('Plays left: ', style: TextStyle(
+            const Text('Plays left: ', style: TextStyle(
               fontFamily: _GG.fontFamily, color: _GG.white, fontSize: 13,
             )),
             _PlaysDots(remaining: playsRemaining, total: 3),
@@ -675,21 +655,21 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
         titleColor: _GG.orange,
         icon: Icons.hourglass_bottom_rounded,
         iconColor: _GG.orange,
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
+        content: const Column(mainAxisSize: MainAxisSize.min, children: [
           Text("You've used all 3 plays for today!",
               style: TextStyle(
                 fontFamily: _GG.fontFamily,
                 color: _GG.white, fontSize: 16, fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text('Come back tomorrow for more! 🌅',
               style: TextStyle(
                 fontFamily: _GG.fontFamily,
-                color: const Color(0xAAFFFFFF), fontSize: 14,
+                color: Color(0xAAFFFFFF), fontSize: 14,
               ),
               textAlign: TextAlign.center),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           _PlaysDots(remaining: 0, total: 3),
         ]),
         actions: [
@@ -710,8 +690,8 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: color.withOpacity(0.12),
-        border: Border.all(color: color.withOpacity(0.45), width: 1.5),
+        color: color.withValues(alpha:0.12),
+        border: Border.all(color: color.withValues(alpha:0.45), width: 1.5),
       ),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Row(children: [
@@ -728,37 +708,46 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
   }
 
   Widget _buildTopBar() {
-    return GestureDetector(
-      onLongPress: _resetPlaysDebug,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(children: [
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      child: Row(
+        children: [
           GestureDetector(
             onTap: _onBackPressed,
             child: Container(
-              width: 44, height: 44,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 gradient: _GG.panelGrad(
-                    _GG.panelBg.withOpacity(0.9), _GG.panelBg),
-                border: _GG.glowBorder(_GG.purple.withOpacity(0.8)),
+                  _GG.panelBg.withValues(alpha:0.9),
+                  _GG.panelBg,
+                ),
+                border: _GG.glowBorder(_GG.purple.withValues(alpha:0.8)),
                 boxShadow: _GG.glow(_GG.purple, blur: 10, spread: 0),
               ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  color: _GG.white, size: 18),
+              child: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: _GG.white,
+                size: 18,
+              ),
             ),
           ),
           const Spacer(),
           _GlossyPill(
-              icon: Icons.diamond_rounded, label: '$score',
-              accent: _GG.pink, iconColor: _GG.pink),
+            icon: Icons.diamond_rounded,
+            label: '$score',
+            accent: _GG.pink,
+            iconColor: _GG.pink,
+          ),
           const SizedBox(width: 10),
           _GlossyPill(
-            icon: Icons.timer_rounded, label: '$timeLeft',
+            icon: Icons.timer_rounded,
+            label: '$timeLeft',
             accent: timeLeft <= 10 ? _GG.red : _GG.orange,
             iconColor: timeLeft <= 10 ? _GG.red : _GG.orangeLight,
           ),
-        ]),
+        ],
       ),
     );
   }
@@ -772,8 +761,8 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(50),
           gradient: _GG.panelGrad(
-              _GG.panelBg.withOpacity(0.88), _GG.panelBg),
-          border: Border.all(color: color.withOpacity(0.7), width: 1.8),
+              _GG.panelBg.withValues(alpha:0.88), _GG.panelBg),
+          border: Border.all(color: color.withValues(alpha:0.7), width: 1.8),
           boxShadow: _GG.glow(color, blur: 10, spread: 0),
         ),
         child: Row(mainAxisAlignment: MainAxisAlignment.center,
@@ -783,7 +772,7 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
               const SizedBox(width: 10),
               Text('Plays Today:',
                   style: _GG.playsLabel.copyWith(
-                      color: _GG.white.withOpacity(0.8))),
+                      color: _GG.white.withValues(alpha:0.8))),
               const SizedBox(width: 8),
               _PlaysDots(remaining: playsRemaining, total: 3),
             ]),
@@ -798,7 +787,7 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
       ScaleTransition(scale: _pulseAnimation,
           child: Image.asset('assets/images/pngs/gemgrab.png',
               width: w * 0.80, fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => _GemGrabLogoFallback())),
+              errorBuilder: (_, __, ___) => const _GemGrabLogoFallback())),
       const SizedBox(height: 12),
       Image.asset('assets/images/pngs/gemgrab_subtext.png',
           width: w * 0.55, fit: BoxFit.contain,
@@ -809,7 +798,7 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
       const SizedBox(height: 8),
       Image.asset('assets/images/pngs/gemgrab_warning.png',
           width: w * 0.42, fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => _WarningChip()),
+          errorBuilder: (_, __, ___) => const _WarningChip()),
       const SizedBox(height: 28),
       Padding(
         padding: EdgeInsets.symmetric(horizontal: w * 0.12),
@@ -835,7 +824,7 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
             ScaleTransition(scale: _pulseAnimation,
                 child: Image.asset('assets/images/pngs/gemgrab.png',
                     width: w * 0.38, fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => _GemGrabLogoFallback(fontSize: 26))),
+                    errorBuilder: (_, __, ___) => const _GemGrabLogoFallback(fontSize: 26))),
             const SizedBox(height: 8),
             Image.asset('assets/images/pngs/gemgrab_subtext.png',
                 width: w * 0.28, fit: BoxFit.contain,
@@ -848,7 +837,7 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Image.asset('assets/images/pngs/gemgrab_warning.png',
                 width: w * 0.22, fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => _WarningChip(compact: true)),
+                errorBuilder: (_, __, ___) => const _WarningChip(compact: true)),
             const SizedBox(height: 18),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: w * 0.04),
@@ -870,7 +859,7 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
     return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       _SleepingLottie(size: w * 0.52),
       const SizedBox(height: 6),
-      Text(
+      const Text(
         '⏰ OUT OF PLAYS',
         style: TextStyle(
           fontFamily: _GG.fontFamily,
@@ -878,7 +867,7 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
           fontWeight: FontWeight.w900,
           color: _GG.orange,
           letterSpacing: 1,
-          shadows: const [Shadow(color: Color(0x88000000), blurRadius: 6)],
+          shadows: [Shadow(color: Color(0x88000000), blurRadius: 6)],
         ),
       ),
       const SizedBox(height: 18),
@@ -887,11 +876,11 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          color: _GG.orange.withOpacity(0.30),
-          border: Border.all(color: _GG.orange.withOpacity(0.65), width: 1.8),
+          color: _GG.orange.withValues(alpha:0.30),
+          border: Border.all(color: _GG.orange.withValues(alpha:0.65), width: 1.8),
           boxShadow: _GG.glow(_GG.orange, blur: 12, spread: 0),
         ),
-        child: Column(children: [
+        child: const Column(children: [
           Text(
             "You've used all 3 plays for today!",
             style: TextStyle(
@@ -902,12 +891,12 @@ class _GemGrabGameScreenState extends State<GemGrabGameScreen>
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             'Come back tomorrow for more! 🌅',
             style: TextStyle(
               fontFamily: _GG.fontFamily,
-              color: const Color(0xCCFFFFFF),
+              color: Color(0xCCFFFFFF),
               fontSize: 13,
             ),
             textAlign: TextAlign.center,
@@ -1026,9 +1015,9 @@ class GemWidget extends StatelessWidget {
   final VoidCallback onTap;
 
   const GemWidget({
-    Key? key, required this.gem,
+    super.key, required this.gem,
     required this.gameAreaHeight, required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1042,9 +1031,9 @@ class _GemWidgetStateful extends StatefulWidget {
   final VoidCallback onTap;
 
   const _GemWidgetStateful({
-    Key? key, required this.gem,
+    required this.gem,
     required this.gameAreaHeight, required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   State<_GemWidgetStateful> createState() => _GemWidgetState();
@@ -1114,26 +1103,26 @@ class _GemWidgetState extends State<_GemWidgetStateful> with TickerProviderState
                     gradient: RadialGradient(
                         colors: [colors[0], colors[1]]),
                     boxShadow: [
-                      BoxShadow(color: colors[0].withOpacity(0.7),
+                      BoxShadow(color: colors[0].withValues(alpha:0.7),
                           blurRadius: 14, spreadRadius: 2),
-                      BoxShadow(color: colors[1].withOpacity(0.4),
+                      BoxShadow(color: colors[1].withValues(alpha:0.4),
                           blurRadius: 24),
                     ],
                     border:
-                    Border.all(color: colors[0].withOpacity(0.6), width: 2),
+                    Border.all(color: colors[0].withValues(alpha:0.6), width: 2),
                   ),
                   child: Stack(alignment: Alignment.center, children: [
                     Positioned(top: 6, left: 8, width: 18, height: 10,
                       child: Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          color: Colors.white.withOpacity(0.35),
+                          color: Colors.white.withValues(alpha:0.35),
                         ),
                       ),
                     ),
                     Icon(Icons.diamond_rounded, color: Colors.white, size: 30,
                         shadows: [
-                          Shadow(color: Colors.white.withOpacity(0.6),
+                          Shadow(color: Colors.white.withValues(alpha:0.6),
                               blurRadius: 8)
                         ]),
                     Positioned(bottom: 4, right: 4,
@@ -1141,7 +1130,7 @@ class _GemWidgetState extends State<_GemWidgetStateful> with TickerProviderState
                         padding: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.black.withOpacity(0.55),
+                          color: Colors.black.withValues(alpha:0.55),
                         ),
                         child: Text('${widget.gem.points}',
                             style: const TextStyle(

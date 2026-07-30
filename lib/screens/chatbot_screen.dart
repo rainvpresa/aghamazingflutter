@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:convert'; // Fixes jsonEncode
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/userprofile_service.dart';
 import '../services/sound_manager.dart'; // 🔊 added
 import '../services/faq_service.dart';
@@ -74,7 +75,7 @@ class FaqItem {
 //  HARDCODED FALLBACK FAQ CONTENT
 // ─────────────────────────────────────────────
 final List<FaqCategory> kFaqCategories = [
-  FaqCategory(
+  const FaqCategory(
     id: 'about',
     label: 'About STII',
     icon: Icons.info_outline_rounded,
@@ -99,7 +100,7 @@ final List<FaqCategory> kFaqCategories = [
       ),
     ],
   ),
-  FaqCategory(
+  const FaqCategory(
     id: 'services',
     label: 'Services',
     icon: Icons.design_services_rounded,
@@ -121,7 +122,7 @@ final List<FaqCategory> kFaqCategories = [
       ),
     ],
   ),
-  FaqCategory(
+  const FaqCategory(
     id: 'publications',
     label: 'Publications',
     icon: Icons.menu_book_rounded,
@@ -143,7 +144,7 @@ final List<FaqCategory> kFaqCategories = [
       ),
     ],
   ),
-  FaqCategory(
+  const FaqCategory(
     id: 'programs',
     label: 'Programs',
     icon: Icons.science_rounded,
@@ -165,7 +166,7 @@ final List<FaqCategory> kFaqCategories = [
       ),
     ],
   ),
-  FaqCategory(
+  const FaqCategory(
     id: 'contact',
     label: 'Contact',
     icon: Icons.contact_support_rounded,
@@ -212,14 +213,13 @@ List<TextSpan> _parseBoldText(String text, TextStyle base) {
 class _RichText extends StatelessWidget {
   final String text;
   final TextStyle style;
-  final TextAlign? textAlign;
 
-  const _RichText(this.text, {required this.style, this.textAlign});
+  const _RichText(this.text, {required this.style});
 
   @override
   Widget build(BuildContext context) {
     return RichText(
-      textAlign: textAlign ?? TextAlign.start,
+      textAlign: TextAlign.start,
       text: TextSpan(children: _parseBoldText(text, style)),
     );
   }
@@ -254,8 +254,7 @@ class ChatbotScreen extends StatefulWidget {
   State<ChatbotScreen> createState() => _ChatbotScreenState();
 }
 
-class _ChatbotScreenState extends State<ChatbotScreen>
-    with TickerProviderStateMixin {
+class _ChatbotScreenState extends State<ChatbotScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
   bool _isTyping = false;
@@ -637,7 +636,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               ),
               boxShadow: [
                 BoxShadow(
-                    color: kYaleBlue.withOpacity(0.25),
+                    color: kYaleBlue.withValues(alpha:0.25),
                     blurRadius: 8,
                     offset: const Offset(0, 3))
               ],
@@ -668,7 +667,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                    color: kYaleBlue.withOpacity(0.3),
+                    color: kYaleBlue.withValues(alpha:0.3),
                     blurRadius: 6,
                     offset: const Offset(0, 2))
               ],
@@ -692,7 +691,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                   ),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.07),
+                        color: Colors.black.withValues(alpha:0.07),
                         blurRadius: 8,
                         offset: const Offset(0, 3))
                   ],
@@ -755,7 +754,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           borderRadius: BorderRadius.circular(layout.r(14)),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha:0.06),
                 blurRadius: 8,
                 offset: const Offset(0, 2))
           ],
@@ -810,10 +809,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
         decoration: BoxDecoration(
           color: kWhite,
           borderRadius: BorderRadius.circular(layout.r(12)),
-          border: Border.all(color: kYaleBlue.withOpacity(0.25), width: 1),
+          border: Border.all(color: kYaleBlue.withValues(alpha:0.25), width: 1),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha:0.04),
                 blurRadius: 4,
                 offset: const Offset(0, 2))
           ],
@@ -875,11 +874,11 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           border: isSecondary
               ? Border.all(color: kRedPigment, width: 1.5)
               : isLink
-              ? Border.all(color: kYaleBlue.withOpacity(0.4), width: 1)
+              ? Border.all(color: kYaleBlue.withValues(alpha:0.4), width: 1)
               : null,
           boxShadow: [
             BoxShadow(
-                color: (isLink ? kYaleBlue : kRedPigment).withOpacity(0.18),
+                color: (isLink ? kYaleBlue : kRedPigment).withValues(alpha:0.18),
                 blurRadius: 6,
                 offset: const Offset(0, 3))
           ],
@@ -947,7 +946,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               borderRadius: BorderRadius.circular(layout.r(18)),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.07),
+                    color: Colors.black.withValues(alpha:0.07),
                     blurRadius: 8,
                     offset: const Offset(0, 3))
               ],
@@ -989,7 +988,7 @@ class _FeedbackModalState extends State<_FeedbackModal> {
   bool _submitted = false;
 
   Future<void> _submit() async {
-    SoundManager.instance.playClick(); // 🔊
+    SoundManager.instance.playClick();
     final text = _feedbackController.text.trim();
     if (_rating == 0 && text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1003,18 +1002,27 @@ class _FeedbackModalState extends State<_FeedbackModal> {
     setState(() => _isSubmitting = true);
 
     try {
-      await FirebaseFirestore.instance.collection('chatbot_feedback').add({
-        'userId': widget.userId,
-        'username': widget.username,
-        'feedback': text,
-        'rating': _rating,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-      if (!mounted) return;
-      setState(() {
-        _isSubmitting = false;
-        _submitted = true;
-      });
+      // ✅ Replace Firestore with your backend API call:
+      final response = await http.post(
+        Uri.parse('https://your-laravel-api.com/api/chatbot-feedback'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'user_id': widget.userId,
+          'username': widget.username,
+          'feedback': text,
+          'rating': _rating,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (!mounted) return;
+        setState(() {
+          _isSubmitting = false;
+          _submitted = true;
+        });
+      } else {
+        throw Exception('Server returned code ${response.statusCode}');
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -1293,7 +1301,7 @@ class _TypingDotsState extends State<_TypingDots>
               width: 7,
               height: 7 + (bounce * 5),
               decoration: BoxDecoration(
-                color: kYaleBlue.withOpacity(0.5 + bounce * 0.5),
+                color: kYaleBlue.withValues(alpha:0.5 + bounce * 0.5),
                 shape: BoxShape.circle,
               ),
             );

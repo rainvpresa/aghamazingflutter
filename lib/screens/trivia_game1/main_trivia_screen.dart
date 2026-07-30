@@ -197,7 +197,9 @@ class _MainTriviaScreenState extends State<MainTriviaScreen>
 
   @override
   void dispose() {
-    for (final c in _starControllers) c.dispose();
+    for (final c in _starControllers) {
+      c.dispose();
+    }
     _heartShakeController.dispose();
     super.dispose();
   }

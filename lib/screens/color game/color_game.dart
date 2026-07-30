@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import '../../services/userprofile_service.dart';
-import '../../services/player_stats_service.dart';
 import '../../widgets/game_quit_handler.dart';
+import '../../services/game_service.dart';
 
 class ColorPuzzleGame extends StatefulWidget {
-  const ColorPuzzleGame({Key? key}) : super(key: key);
+  const ColorPuzzleGame({super.key});
 
   @override
   State<ColorPuzzleGame> createState() => _ColorPuzzleGameState();
@@ -31,7 +30,7 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
   bool gameWon = false;
   bool isGameActive = false;
 
-  final UserProfileService _profileService = UserProfileService();
+  final GameSessionService _gameSessionService = GameSessionService();
   bool _isSavingRewards = false;
 
   @override
@@ -151,29 +150,22 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
   }
 
   Future<void> _saveRewards(int coins, int points, {bool won = true}) async {
+    if (_isSavingRewards) return;
     setState(() => _isSavingRewards = true);
+
     try {
-      await _profileService.updateGameStats(
-        gamesPlayed: 1,
-        gamesWon: won ? 1 : 0,
-        totalScore: points,
-      );
-      if (coins > 0) {
-        await _profileService.addCoins(
-          amount: coins,
-          reason: 'Color Puzzle Game - $moveCount moves ${won ? "" : "(Quit early)"}',
-        );
-      }
-      await PlayerStatsService().saveColorPuzzleSession(
-        moveCount: moveCount,
-        optimalMoves: 12,
+      await _gameSessionService.saveColorPuzzleSession(
         scoreEarned: points,
         coinsEarned: coins,
+        moveCount: moveCount,
+        optimalMoves: 12,
       );
     } catch (e) {
-      debugPrint('❌ Error saving rewards: $e');
+      debugPrint('❌ Error saving color puzzle session: $e');
     } finally {
-      setState(() => _isSavingRewards = false);
+      if (mounted) {
+        setState(() => _isSavingRewards = false);
+      }
     }
   }
 
@@ -226,7 +218,7 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
               color: (isQuitting
                   ? const Color(0xFFFF9500)
                   : const Color(0xFF39E14B))
-                  .withOpacity(0.75),
+                  .withValues(alpha:0.75),
               width: 2.5,
             ),
             boxShadow: [
@@ -234,7 +226,7 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
                 color: (isQuitting
                     ? const Color(0xFFFF9500)
                     : const Color(0xFF39E14B))
-                    .withOpacity(0.5),
+                    .withValues(alpha:0.5),
                 blurRadius: 30,
                 spreadRadius: 4,
               ),
@@ -257,7 +249,7 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
                         begin: Alignment.topCenter,
                         end:   Alignment.bottomCenter,
                         colors: [
-                          Colors.white.withOpacity(0.08),
+                          Colors.white.withValues(alpha:0.08),
                           Colors.transparent,
                         ],
                       ),
@@ -290,7 +282,7 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
                               color: (isQuitting
                                   ? const Color(0xFFFF9500)
                                   : const Color(0xFF39E14B))
-                                  .withOpacity(0.8),
+                                  .withValues(alpha:0.8),
                               blurRadius: 12,
                             ),
                             const Shadow(
@@ -308,9 +300,9 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
                             horizontal: ref * 0.050, vertical: ref * 0.018),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(ref * 0.060),
-                          color:  Colors.white.withOpacity(0.10),
+                          color:  Colors.white.withValues(alpha:0.10),
                           border: Border.all(
-                              color: Colors.white.withOpacity(0.20), width: 1.5),
+                              color: Colors.white.withValues(alpha:0.20), width: 1.5),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -339,9 +331,9 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
                             horizontal: ref * 0.040, vertical: ref * 0.030),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(ref * 0.040),
-                          color:  Colors.white.withOpacity(0.07),
+                          color:  Colors.white.withValues(alpha:0.07),
                           border: Border.all(
-                              color: Colors.white.withOpacity(0.14), width: 1),
+                              color: Colors.white.withValues(alpha:0.14), width: 1),
                         ),
                         child: Column(
                           children: [
@@ -369,7 +361,7 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
                                 Container(
                                   width: 1.5,
                                   height: ref * 0.10,
-                                  color: Colors.white.withOpacity(0.15),
+                                  color: Colors.white.withValues(alpha:0.15),
                                 ),
                                 _ArcadeRewardItem(
                                   icon:  Icons.stars_rounded,
@@ -484,10 +476,10 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: Colors.white.withValues(alpha:0.9),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha:0.1),
             blurRadius: 4, offset: const Offset(0, 2),
           ),
         ],
@@ -503,7 +495,7 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.orange.withOpacity(0.4),
+                    color: Colors.orange.withValues(alpha:0.4),
                     blurRadius: 8, offset: const Offset(0, 2),
                   ),
                 ],
@@ -529,7 +521,7 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
               border: Border.all(color: Colors.orange.shade700, width: 2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.orange.withOpacity(0.3),
+                  color: Colors.orange.withValues(alpha:0.3),
                   blurRadius: 4, offset: const Offset(0, 2),
                 ),
               ],
@@ -567,7 +559,7 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.purple.withOpacity(0.4),
+                    color: Colors.purple.withValues(alpha:0.4),
                     blurRadius: 8, offset: const Offset(0, 4),
                   ),
                 ],
@@ -598,7 +590,7 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.blue.withOpacity(0.4),
+                    color: Colors.blue.withValues(alpha:0.4),
                     blurRadius: 8, offset: const Offset(0, 4),
                   ),
                 ],
@@ -628,12 +620,12 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
       padding: const EdgeInsets.all(20),
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
+        color: Colors.white.withValues(alpha:0.95),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white, width: 4),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha:0.2),
             blurRadius: 20, offset: const Offset(0, 8),
           ),
         ],
@@ -707,7 +699,7 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.green.withOpacity(0.4),
+              color: Colors.green.withValues(alpha:0.4),
               blurRadius: 12, offset: const Offset(0, 6),
             ),
           ],
@@ -756,13 +748,13 @@ class _WinIcon extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: RadialGradient(colors: [
-          accent.withOpacity(0.3),
+          accent.withValues(alpha:0.3),
           const Color(0xFF1E0B00),
         ]),
-        border: Border.all(color: accent.withOpacity(0.8), width: 2.5),
+        border: Border.all(color: accent.withValues(alpha:0.8), width: 2.5),
         boxShadow: [
-          BoxShadow(color: accent.withOpacity(0.7), blurRadius: 22, spreadRadius: 2),
-          BoxShadow(color: accent.withOpacity(0.3), blurRadius: 40),
+          BoxShadow(color: accent.withValues(alpha:0.7), blurRadius: 22, spreadRadius: 2),
+          BoxShadow(color: accent.withValues(alpha:0.3), blurRadius: 40),
         ],
       ),
       child: Icon(
@@ -800,7 +792,7 @@ class _ArcadeRewardItem extends StatelessWidget {
           fontSize:      ref * 0.058,
           fontWeight:    FontWeight.w900,
           color:         color,
-          shadows: [Shadow(color: color.withOpacity(0.5), blurRadius: 8)],
+          shadows: [Shadow(color: color.withValues(alpha:0.5), blurRadius: 8)],
         )),
         Text(label, style: TextStyle(
           fontFamily: 'LilitaOne',
@@ -829,7 +821,7 @@ class _ArcadeStarDivider extends StatelessWidget {
             isCenter ? Icons.star_rounded : Icons.star_outline_rounded,
             color: isCenter
                 ? const Color(0xFFFFD700)
-                : Colors.white.withOpacity(0.28),
+                : Colors.white.withValues(alpha:0.28),
             size: isCenter ? ref * 0.046 : ref * 0.030,
             shadows: isCenter
                 ? [const Shadow(color: Color(0xFFFFD700), blurRadius: 8)]
@@ -884,14 +876,14 @@ class _ArcadeWinButtonState extends State<_ArcadeWinButton> {
             ),
             boxShadow: widget.onTap == null ? [] : [
               BoxShadow(
-                color:      widget.bottom.withOpacity(0.9),
+                color:      widget.bottom.withValues(alpha:0.9),
                 blurRadius: 0, spreadRadius: 0,
                 offset:     Offset(0, _pressed ? 1 : 4),
               ),
-              BoxShadow(color: widget.shadow.withOpacity(0.55), blurRadius: 14, spreadRadius: 1),
-              BoxShadow(color: widget.shadow.withOpacity(0.22), blurRadius: 26),
+              BoxShadow(color: widget.shadow.withValues(alpha:0.55), blurRadius: 14, spreadRadius: 1),
+              BoxShadow(color: widget.shadow.withValues(alpha:0.22), blurRadius: 26),
             ],
-            border: Border.all(color: Colors.white.withOpacity(0.22), width: 1.5),
+            border: Border.all(color: Colors.white.withValues(alpha:0.22), width: 1.5),
           ),
           child: Stack(alignment: Alignment.center, children: [
             // Gloss
@@ -903,7 +895,7 @@ class _ArcadeWinButtonState extends State<_ArcadeWinButton> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.white.withOpacity(0.28), Colors.transparent],
+                      colors: [Colors.white.withValues(alpha:0.28), Colors.transparent],
                     ),
                   ),
                 ),
@@ -924,7 +916,7 @@ class _ArcadeWinButtonState extends State<_ArcadeWinButton> {
                     Icon(widget.icon, color: Colors.white,
                         size: widget.fontSize + 4,
                         shadows: [Shadow(
-                            color: Colors.black.withOpacity(0.45),
+                            color: Colors.black.withValues(alpha:0.45),
                             blurRadius: 4)]),
                     const SizedBox(width: 6),
                     Text(widget.label,
@@ -958,8 +950,7 @@ class BottleWidget extends StatelessWidget {
   final List<Color> colors;
   final bool canMove;
 
-  const BottleWidget({Key? key, required this.colors, this.canMove = false})
-      : super(key: key);
+  const BottleWidget({super.key, required this.colors, this.canMove = false});
 
   @override
   Widget build(BuildContext context) {
@@ -989,7 +980,7 @@ class BottleWidget extends StatelessWidget {
                   boxShadow: [
                     BoxShadow(
                       color: canMove
-                          ? Colors.green.withOpacity(0.3)
+                          ? Colors.green.withValues(alpha:0.3)
                           : Colors.grey.shade300,
                       blurRadius: canMove ? 8 : 4,
                       offset: const Offset(0, 2),
@@ -1043,7 +1034,7 @@ class BottleWidget extends StatelessWidget {
                     border: Border.all(color: Colors.white, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.green.withOpacity(0.5),
+                        color: Colors.green.withValues(alpha:0.5),
                         blurRadius: 4, spreadRadius: 1,
                       ),
                     ],
@@ -1058,7 +1049,7 @@ class BottleWidget extends StatelessWidget {
 }
 
 class EmptySpotWidget extends StatelessWidget {
-  const EmptySpotWidget({Key? key}) : super(key: key);
+  const EmptySpotWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -1072,7 +1063,7 @@ class EmptySpotWidget extends StatelessWidget {
             style: BorderStyle.solid),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha:0.1),
             blurRadius: 4, offset: const Offset(0, 2),
           ),
         ],

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
+import '../services/api_config.dart';
+import '../services/avatar_service.dart';
 import '../services/auth_service.dart';
 import '../services/userprofile_service.dart';
-import '../services/sound_manager.dart'; // 🔊 added
+import '../services/sound_manager.dart';
+import '../widgets/avatar_picker_dialog.dart';
 import 'login_screen.dart';
 
 // ─────────────────────────────────────────────
@@ -38,14 +38,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final TextEditingController _nameController  = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
 
-  String? _profileAvatarPath;
-  bool    _loading = true;
-
-  final FirebaseAuth       _auth           = FirebaseAuth.instance;
-  final FirebaseFirestore  _firestore      = FirebaseFirestore.instance;
+  final AuthService _authService = AuthService();
   final UserProfileService _profileService = UserProfileService();
+  final AvatarService _avatarService = AvatarService();
 
-  static const List<String> _avatarPool = [
+  String? _profileAvatarUrl;
+  int?    _selectedAvatarId;
+  bool    _loading = true;
+  List<dynamic> _avatarPool = [];
+
+  // Fallback avatars in case backend pool isn't loaded yet
+  static const List<String> _fallbackAvatarAssets = [
     'assets/images/avatars/botttsNeutral-blue.png',
     'assets/images/avatars/botttsNeutral-yellow.png',
     'assets/images/avatars/botttsNeutral-cool.png',
@@ -59,22 +62,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadProfile();
   }
 
+  /// Helper to safely load network or asset image providers for avatars
+  ImageProvider? _getAvatarProvider(String? urlOrPath) {
+    if (urlOrPath == null || urlOrPath.isEmpty) return null;
+    final formattedUrl = ApiConfig.formatImageUrl(urlOrPath);
+
+    // 🔍 PRINT THIS TO YOUR DEBUG CONSOLE:
+    debugPrint('Attempting to load avatar URL: $formattedUrl');
+
+    if (formattedUrl.startsWith('http://') || formattedUrl.startsWith('https://')) {
+      return NetworkImage(formattedUrl);
+    }
+    return AssetImage(formattedUrl);
+  }
+
   Future<void> _loadProfile() async {
     setState(() => _loading = true);
     try {
-      final user = _auth.currentUser;
+      final user = await _authService.getCurrentUser();
+      final pool = await _avatarService.getAvatarPool();
+      _avatarPool = pool;
+
       if (user == null) {
         if (mounted) Navigator.of(context).pushReplacementNamed('/login');
         return;
       }
-      final profile = await _profileService.getUserProfile();
-      if (profile != null) {
-        _nameController.text  = profile['displayName'] ?? '';
-        _emailController.text = profile['email'] ?? user.email ?? '';
-        _profileAvatarPath    = profile['avatarPath'];
-      } else {
-        _nameController.text  = user.displayName ?? '';
-        _emailController.text = user.email ?? '';
+
+      _nameController.text  = user['display_name'] ?? user['name'] ?? '';
+      _emailController.text = user['email'] ?? '';
+      _selectedAvatarId     = user['avatar_pool_id'];
+
+      if (user['avatar_url'] != null) {
+        _profileAvatarUrl = user['avatar_url'];
+      } else if (_selectedAvatarId != null && _avatarPool.isNotEmpty) {
+        final match = _avatarPool.firstWhere(
+              (a) => a['id'] == _selectedAvatarId,
+          orElse: () => null,
+        );
+        if (match != null) {
+          _profileAvatarUrl = match['image_url'];
+        }
       }
     } catch (e) {
       debugPrint('Error loading profile: $e');
@@ -89,7 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _saveName() async {
-    SoundManager.instance.playClick(); // 🔊
+    SoundManager.instance.playClick();
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -98,12 +125,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
     try {
-      await _profileService.updateUserProfile(displayName: name);
+      final success = await _profileService.updateUserProfile(displayName: name);
       if (!mounted) return;
-      setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name saved successfully')),
-      );
+      if (success) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Name saved successfully')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update name')),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -111,17 +144,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _saveAvatar(String assetPath) async {
+  Future<void> _saveAvatar({int? avatarId, String? imageUrl}) async {
     try {
-      await _firestore
-          .collection('users')
-          .doc(_auth.currentUser!.uid)
-          .update({'avatarPath': assetPath});
-      setState(() => _profileAvatarPath = assetPath);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile picture updated')),
-      );
+      final success = await _profileService.updateUserProfile(avatarPoolId: avatarId);
+      if (success) {
+        setState(() {
+          _selectedAvatarId = avatarId;
+          _profileAvatarUrl = imageUrl;
+        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile picture updated')),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update picture')),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -130,91 +170,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showAvatarSheet() async {
-    SoundManager.instance.playClick(); // 🔊
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text('Choose profile picture',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 200,
-                child: GridView.builder(
-                  itemCount: _avatarPool.length,
-                  gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                  ),
-                  itemBuilder: (_, i) {
-                    final a        = _avatarPool[i];
-                    final selected = a == _profileAvatarPath;
-                    return GestureDetector(
-                      onTap: () async {
-                        SoundManager.instance.playClick(); // 🔊
-                        Navigator.of(ctx).pop();
-                        await _saveAvatar(a);
-                      },
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CircleAvatar(
-                            backgroundImage: AssetImage(a),
-                            radius: 36,
-                            backgroundColor: Colors.grey.shade200,
-                          ),
-                          if (selected)
-                            Container(
-                              width: 72, height: 72,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.black.withOpacity(0.28),
-                                border:
-                                Border.all(color: Colors.white, width: 2),
-                              ),
-                              child: const Icon(Icons.check, color: Colors.white),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              TextButton(
-                onPressed: () {
-                  SoundManager.instance.playClick(); // 🔊
-                  Navigator.of(ctx).pop();
-                  _saveAvatar('');
-                },
-                child: const Text('Remove / Reset to default'),
-              ),
-            ],
-          ),
-        ),
-      ),
+    SoundManager.instance.playClick();
+    await AvatarPickerDialog.show(
+      context,
+      avatarPool: _avatarPool,
+      fallbackAvatarAssets: _fallbackAvatarAssets,
+      selectedAvatarId: _selectedAvatarId,
+      profileAvatarUrl: _profileAvatarUrl,
+      onAvatarSelected: (avatarId, imageUrl) {
+        _saveAvatar(avatarId: avatarId, imageUrl: imageUrl);
+      },
     );
   }
 
   Future<void> _showEditEmailDialog() async {
-    SoundManager.instance.playClick(); // 🔊
+    SoundManager.instance.playClick();
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -223,13 +193,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
               onPressed: () {
-                SoundManager.instance.playClick(); // 🔊
+                SoundManager.instance.playClick();
                 Navigator.of(ctx).pop();
               },
               child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
-              SoundManager.instance.playClick(); // 🔊
+              SoundManager.instance.playClick();
               Navigator.of(ctx).pop();
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                   content:
@@ -243,38 +213,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _showResetPasswordDialog() async {
-    SoundManager.instance.playClick(); // 🔊
-    final user = _auth.currentUser;
-    if (user == null || user.email == null) {
+    SoundManager.instance.playClick();
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No email found for this account')));
       return;
     }
+
     final shouldSend = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Reset Password'),
-        content: Text('Send a password reset link to:\n${user.email}'),
+        content: Text('Send a password reset link to:\n$email'),
         actions: [
           TextButton(
               onPressed: () {
-                SoundManager.instance.playClick(); // 🔊
+                SoundManager.instance.playClick();
                 Navigator.of(ctx).pop(false);
               },
               child: const Text('Cancel')),
           ElevatedButton(
               onPressed: () {
-                SoundManager.instance.playClick(); // 🔊
+                SoundManager.instance.playClick();
                 Navigator.of(ctx).pop(true);
               },
               child: const Text('Send Link')),
         ],
       ),
     );
+
     if (shouldSend == true) {
-      final result =
-      await AuthService().sendPasswordResetEmail(email: user.email!);
+      final result = await _authService.sendPasswordResetEmail(email: email);
       if (!mounted) return;
+
       if (result['success'] == true) {
         await showDialog<void>(
           context: context,
@@ -291,7 +264,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style:
                     TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Text(result['message'],
+                Text(result['message'] ?? 'Check your email to reset password.',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                         color: Colors.black54, fontSize: 14)),
@@ -302,7 +275,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    SoundManager.instance.playClick(); // 🔊
+                    SoundManager.instance.playClick();
                     Navigator.of(ctx).pop();
                   },
                   style: ElevatedButton.styleFrom(
@@ -325,7 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _confirmLogout() async {
-    SoundManager.instance.playClick(); // 🔊
+    SoundManager.instance.playClick();
     final should = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -334,13 +307,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
               onPressed: () {
-                SoundManager.instance.playClick(); // 🔊
+                SoundManager.instance.playClick();
                 Navigator.of(ctx).pop(false);
               },
               child: const Text('No')),
           ElevatedButton(
             onPressed: () {
-              SoundManager.instance.playClick(); // 🔊
+              SoundManager.instance.playClick();
               Navigator.of(ctx).pop(true);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -349,9 +322,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+
     if (should == true) {
       try {
-        await AuthService().logout();
+        await _authService.logout();
         if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -367,7 +341,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildAvatar(double size) {
     Widget avatar;
-    if (_profileAvatarPath == null || _profileAvatarPath!.isEmpty) {
+    final imageProvider = _getAvatarProvider(_profileAvatarUrl);
+
+    if (imageProvider == null) {
       avatar = CircleAvatar(
         radius: size / 2,
         backgroundColor: Colors.white,
@@ -377,12 +353,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } else {
       avatar = CircleAvatar(
         radius: size / 2,
-        backgroundImage: AssetImage(_profileAvatarPath!),
+        backgroundImage: imageProvider,
         backgroundColor: Colors.white,
       );
     }
+
     return GestureDetector(
-      onTap: _showAvatarSheet, // 🔊 sound called inside _showAvatarSheet
+      onTap: _showAvatarSheet,
       child: Stack(
         alignment: Alignment.bottomRight,
         children: [
@@ -392,7 +369,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 10,
                     offset: const Offset(0, 4))
               ],
@@ -449,7 +426,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         alignment: Alignment.centerLeft,
                         child: GestureDetector(
                           onTap: () {
-                            SoundManager.instance.playClick(); // 🔊
+                            SoundManager.instance.playClick();
                             Navigator.of(context).pop();
                           },
                           child: Image.asset(
@@ -482,12 +459,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           width: double.infinity,
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFA726)
-                                .withOpacity(0.88),
+                                .withValues(alpha: 0.88),
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
                                   color:
-                                  Colors.black.withOpacity(0.15),
+                                  Colors.black.withValues(alpha: 0.15),
                                   blurRadius: 16,
                                   offset: const Offset(0, 8))
                             ],
@@ -551,12 +528,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             vertical: maxH * 0.016,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.95),
+                            color: Colors.white.withValues(alpha: 0.95),
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
                                   color:
-                                  Colors.black.withOpacity(0.10),
+                                  Colors.black.withValues(alpha: 0.10),
                                   blurRadius: 16,
                                   offset: const Offset(0, 8))
                             ],
@@ -645,7 +622,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       SizedBox(
                                         height: maxH * 0.058,
                                         child: ElevatedButton(
-                                          onPressed: _showEditEmailDialog, // 🔊 sound called inside
+                                          onPressed: _showEditEmailDialog,
                                           style:
                                           ElevatedButton.styleFrom(
                                             backgroundColor:
@@ -677,7 +654,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     child: SizedBox(
                                       height: maxH * 0.058,
                                       child: OutlinedButton(
-                                        onPressed: _showResetPasswordDialog, // 🔊 sound called inside
+                                        onPressed: _showResetPasswordDialog,
                                         style: OutlinedButton.styleFrom(
                                           side: const BorderSide(
                                               color: Color(0xFF2196F3)),
@@ -705,7 +682,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     child: SizedBox(
                                       height: maxH * 0.058,
                                       child: ElevatedButton(
-                                        onPressed: _saveName, // 🔊 sound called inside
+                                        onPressed: _saveName,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor:
                                           const Color(0xFF57BF0F),
@@ -732,7 +709,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 width: double.infinity,
                                 height: maxH * 0.058,
                                 child: OutlinedButton(
-                                  onPressed: _confirmLogout, // 🔊 sound called inside
+                                  onPressed: _confirmLogout,
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor:
                                     const Color(0xFFE53935),

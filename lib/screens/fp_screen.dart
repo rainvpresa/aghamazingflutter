@@ -210,7 +210,7 @@ class _FpScreenState extends State<FpScreen> {
         onTapCancel: () => setState(() => _buttonPressed = false),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
-          transform: Matrix4.identity()..scale(scale),
+          transform: Matrix4.diagonal3Values(scale, scale, 1.0),
           curve: Curves.easeOut,
           height: l.btnH,
           width: double.infinity,
@@ -319,7 +319,7 @@ class _FpScreenState extends State<FpScreen> {
                             hintText: 'Enter your email',
                             prefixIcon: const Icon(Icons.mail_outline),
                             filled: true,
-                            fillColor: Colors.white.withOpacity(0.95),
+                            fillColor: Colors.white.withValues(alpha: 0.95),
                             contentPadding: const EdgeInsets.symmetric(
                                 vertical: 14.0, horizontal: 16.0),
                             border: OutlineInputBorder(

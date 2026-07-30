@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class EnergyManager {
@@ -121,7 +122,7 @@ class EnergyManager {
 
       return success;
     } catch (e) {
-      print('Error syncing energy with Firebase: $e');
+      debugPrint('Error syncing energy with Firebase: $e');
       return false;
     }
   }

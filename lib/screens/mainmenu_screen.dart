@@ -4,7 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:lottie/lottie.dart';
-import '../services/userprofile_service.dart';
+import '../services/player_stats_service.dart';
+import '../services/session_service.dart';
 import '../services/energy_manager.dart';
 import '../services/sound_manager.dart';
 import 'profile_screen.dart';
@@ -106,10 +107,12 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
   Future<void> _loadLeaderboard() async {
     setState(() => _isLoadingLeaderboard = true);
     try {
-      final data = await UserProfileService().getLeaderboard(limit: 5);
+      // Calling GET /api/app/leaderboard via PlayerStatsService
+      final List<dynamic> data = await PlayerStatsService().getLeaderboard();
+
       if (mounted) {
         setState(() {
-          _leaderboardData = data;
+          _leaderboardData = List<Map<String, dynamic>>.from(data);
           _isLoadingLeaderboard = false;
         });
       }
@@ -142,6 +145,10 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
       final info = await EnergyManager.instance.getEnergyInfo();
       final int current = info['current'] ?? 0;
       final int secondsNext = info['secondsUntilNext'] ?? 0;
+
+      // Keep SessionService updated so UI reflects regenerated energy automatically
+      SessionService.instance.setEnergy(current);
+
       if (current < _maxEnergy) {
         if (mounted) setState(() => _timeUntilNextRegen = secondsNext);
       } else {
@@ -454,7 +461,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                           shape: BoxShape.circle,
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.amber.withOpacity(0.5),
+                                              color: Colors.amber.withValues(alpha:0.5),
                                               blurRadius: 8,
                                               spreadRadius: 2,
                                             ),
@@ -475,7 +482,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                         borderRadius: BorderRadius.circular(12),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: const Color(0xFF6C5CE7).withOpacity(0.4),
+                                            color: const Color(0xFF6C5CE7).withValues(alpha:0.4),
                                             blurRadius: 8,
                                             spreadRadius: 2,
                                           ),
@@ -516,16 +523,17 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                     ),
                                   ),
                                 )
-                                    : ListView.builder(
+                                     : ListView.builder(
                                   padding: EdgeInsets.zero,
-                                  itemCount: _leaderboardData.length,
+                                  itemCount: _leaderboardData.length > 5 ? 5 : _leaderboardData.length, // Display top 5
                                   itemBuilder: (context, index) {
                                     final player = _leaderboardData[index];
+
                                     return _LeaderboardItem(
                                       rank: index + 1,
-                                      displayName: player['displayName'] ?? 'Anonymous',
-                                      score: player['totalScore'] ?? 0,
-                                      avatarPath: player['avatarPath'] ?? '',
+                                      displayName: player['display_name'] ?? player['name'] ?? 'Anonymous',
+                                      score: player['total_score'] ?? player['coins'] ?? player['score'] ?? 0,
+                                      avatarPath: player['avatar_url'] ?? player['avatar_path'] ?? '',
                                       itemBgAsset: asset('leaderboard_item_bg'),
                                       rankBadgeAsset: asset('rank_${index + 1}_badge'),
                                       rankLabelAsset: asset('rank_${index + 1}_label'),
@@ -833,7 +841,7 @@ class _LeaderboardItem extends StatelessWidget {
             border: Border.all(color: Colors.purple, width: 2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha:0.5),
                 blurRadius: 20,
                 spreadRadius: 5,
               ),
@@ -850,7 +858,7 @@ class _LeaderboardItem extends StatelessWidget {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: _getRankColor(rank).withOpacity(0.5),
+                      color: _getRankColor(rank).withValues(alpha:0.5),
                       blurRadius: 12,
                       spreadRadius: 2,
                     ),
@@ -915,7 +923,7 @@ class _LeaderboardItem extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6C5CE7).withOpacity(0.2),
+                  color: const Color(0xFF6C5CE7).withValues(alpha:0.2),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFF6C5CE7), width: 2),
                 ),
@@ -1047,7 +1055,7 @@ class _LeaderboardItem extends StatelessWidget {
                 vertical: screenWidth * 0.01,
               ),
               decoration: BoxDecoration(
-                color: const Color(0xFF6C5CE7).withOpacity(0.3),
+                color: const Color(0xFF6C5CE7).withValues(alpha:0.3),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -1081,7 +1089,7 @@ class _LeaderboardItem extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: _getRankColor(rank).withOpacity(0.5),
+            color: _getRankColor(rank).withValues(alpha:0.5),
             blurRadius: 8,
             spreadRadius: 2,
           ),
@@ -1116,7 +1124,7 @@ void showStyledSnackBar(BuildContext context, {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha:0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: iconColor, size: 24),

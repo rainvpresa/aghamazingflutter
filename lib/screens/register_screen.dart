@@ -2,24 +2,24 @@ import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import '../services/auth_service.dart';
 import '../services/sound_manager.dart';
+import '../widgets/terms_dialog.dart';
 
 // ─────────────────────────────────────────────
 //  LAYOUT HELPER
 // ─────────────────────────────────────────────
 class _Layout {
-  final bool isShort; // true on 1520x720 portrait (~720 logical height)
+  final bool isShort;
 
   _Layout(BuildContext context)
       : isShort = MediaQuery.of(context).size.height < 750;
 
-  // Top spacer — reserves room for background artwork header
-  int get topFlex     => isShort ? 45 : 48;
-  int get contentFlex => isShort ? 80 : 74;
+  int get topFlex     => isShort ? 30 : 35;
+  int get contentFlex => isShort ? 95 : 88;
 
-  double get fieldH       => isShort ? 44.0 : 52.0;
-  double get fieldSpacing => isShort ? 14.0  : 16.0;
+  double get fieldH       => isShort ? 44.0 : 50.0;
+  double get fieldSpacing => isShort ? 12.0 : 14.0;
   double get btnH         => isShort ? 44.0 : 50.0;
-  double get sectionGap   => isShort ? 14.0 : 16.0;
+  double get sectionGap   => isShort ? 12.0 : 14.0;
   double get hPad         => isShort ? 24.0 : 28.0;
   double fontSize(double base) => isShort ? base - 1 : base;
 }
@@ -39,6 +39,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passCtl    = TextEditingController();
   final _confirmCtl = TextEditingController();
 
+  // Dropdown Selections
+  String? _selectedRegion;
+  String? _selectedAgeGroup;
+  String? _selectedGender;
+
   bool _nickTouched    = false;
   bool _emailTouched   = false;
   bool _passTouched    = false;
@@ -54,8 +59,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isCreating     = false;
   bool _acceptedTerms  = false;
 
-  final RegExp _emailRegex  = RegExp(r"^[\w\.\-]+@([\w\-]+\.)+[a-zA-Z]{2,}$");
-  final RegExp _numberRegex = RegExp(r'\d');
+  final RegExp _emailRegex     = RegExp(r"^[\w\.\-]+@([\w\-]+\.)+[a-zA-Z]{2,}$");
+  final RegExp _numberRegex    = RegExp(r'\d');
+  final RegExp _uppercaseRegex = RegExp(r'[A-Z]');
+
+  // Backend Constant Lists (Matches AppUser Model Exactly)
+  static const List<String> _regions = [
+    'NCR - National Capital Region',
+    'CAR - Cordillera Administrative Region',
+    'Region I - Ilocos Region',
+    'Region II - Cagayan Valley',
+    'Region III - Central Luzon',
+    'Region IV-A - CALABARZON',
+    'MIMAROPA Region',
+    'Region V - Bicol Region',
+    'Region VI - Western Visayas',
+    'Negros Island Region',
+    'Region VII - Central Visayas',
+    'Region VIII - Eastern Visayas',
+    'Region IX - Zamboanga Peninsula',
+    'Region X - Northern Mindanao',
+    'Region XI - Davao Region',
+    'Region XII - SOCCSKSARGEN',
+    'Region XIII - Caraga',
+    'BARMM - Bangsamoro Autonomous Region in Muslim Mindanao',
+  ];
+
+  static const List<String> _ageGroups = [
+    'Under 18',
+    '18 to 24',
+    '25 to 34',
+    '35 to 44',
+    '45 to 54',
+    '55+',
+  ];
+
+  static const List<String> _genders = ['M', 'F', 'Non-binary'];
 
   @override
   void initState() {
@@ -74,9 +113,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  bool _validateNick(String v)  => v.trim().isNotEmpty;
+  bool _validateNick(String v)  => v.trim().isNotEmpty && v.trim().length <= 50;
   bool _validateEmail(String v) => _emailRegex.hasMatch(v.trim());
-  bool _validatePass(String v)  => v.length >= 8 && _numberRegex.hasMatch(v);
+
+  // Enforces Laravel Password Rules: min 8, uppercase, number
+  bool _validatePass(String v)  =>
+      v.length >= 8 && _numberRegex.hasMatch(v) && _uppercaseRegex.hasMatch(v);
 
   void _onNickChanged(String v) => setState(() {
     _nickTouched = true;
@@ -92,8 +134,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passTouched = true;
     _isPassValid = _validatePass(v);
     if (_confirmTouched) {
-      _isConfirmValid =
-          _confirmCtl.text.isNotEmpty && _confirmCtl.text == v;
+      _isConfirmValid = _confirmCtl.text.isNotEmpty && _confirmCtl.text == v;
     }
   });
 
@@ -112,168 +153,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _isEmailValid &&
           _isPassValid &&
           _isConfirmValid &&
+          _selectedRegion != null &&
+          _selectedAgeGroup != null &&
+          _selectedGender != null &&
           _acceptedTerms &&
           !_isCreating;
-
-  // ─────────────────────────────────────────────
-  //  TERMS DIALOG  (unchanged logic)
-  // ─────────────────────────────────────────────
-  void _showTermsAndConditions() {
-    SoundManager.instance.playClick();
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return LayoutBuilder(builder: (context, constraints) {
-          final screenSize = MediaQuery.of(context).size;
-          final isSmallScreen = screenSize.width < 600;
-          final isVerySmall = screenSize.width < 360;
-          final dialogWidth = isVerySmall
-              ? screenSize.width * 0.95
-              : (isSmallScreen ? screenSize.width * 0.9 : 500.0);
-          final dialogHeight = screenSize.height * 0.85;
-          final hp = isVerySmall ? 12.0 : (isSmallScreen ? 16.0 : 20.0);
-
-          return Dialog(
-            shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            insetPadding: EdgeInsets.symmetric(
-                horizontal: isVerySmall ? 8 : 16, vertical: 24),
-            child: Container(
-              constraints:
-              BoxConstraints(maxHeight: dialogHeight, maxWidth: dialogWidth),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding:
-                    EdgeInsets.symmetric(horizontal: hp, vertical: hp),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF1866B2),
-                      borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          topRight: Radius.circular(16)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text('Terms and Conditions',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: isVerySmall ? 16 : 18,
-                                  fontWeight: FontWeight.w600)),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.close,
-                              color: Colors.white,
-                              size: isVerySmall ? 20 : 24),
-                          onPressed: () {
-                            SoundManager.instance.playClick();
-                            Navigator.of(context).pop();
-                          },
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Flexible(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.all(hp),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildTermsSection('Introduction',
-                              'Welcome to our application. By creating an account and using our services, you agree to be bound by these Terms and Conditions.',
-                              isSmall: isVerySmall),
-                          _buildTermsSection('Account Registration',
-                              'You must provide accurate and complete information when creating your account. You are responsible for maintaining the confidentiality of your account credentials.',
-                              isSmall: isVerySmall),
-                          _buildTermsSection('User Responsibilities',
-                              'You agree to use our services in compliance with all applicable laws and regulations.',
-                              isSmall: isVerySmall),
-                          _buildTermsSection('Privacy and Data',
-                              'Your privacy is important to us. We collect and process your personal data in accordance with our Privacy Policy.',
-                              isSmall: isVerySmall),
-                          _buildTermsSection('Intellectual Property',
-                              'All content, features, and functionality of our services are owned by us and protected by international copyright laws.',
-                              isSmall: isVerySmall),
-                          _buildTermsSection('Limitation of Liability',
-                              'We provide our services "as is" without any warranties.',
-                              isSmall: isVerySmall),
-                          _buildTermsSection('Termination',
-                              'We reserve the right to suspend or terminate your account at any time for violation of these terms.',
-                              isSmall: isVerySmall),
-                          _buildTermsSection('Changes to Terms',
-                              'We may modify these Terms and Conditions at any time. Continued use constitutes acceptance.',
-                              isSmall: isVerySmall),
-                          _buildTermsSection('Contact Information',
-                              'If you have any questions, please contact us through our support channels.',
-                              isSmall: isVerySmall),
-                          const SizedBox(height: 8),
-                          Text('Last updated: January 2026',
-                              style: TextStyle(
-                                  fontSize: isVerySmall ? 11 : 12,
-                                  fontStyle: FontStyle.italic,
-                                  color: Colors.black54)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.all(hp),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          SoundManager.instance.playClick();
-                          Navigator.of(context).pop();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1866B2),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28)),
-                        ),
-                        child: const Text('Close',
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        });
-      },
-    );
-  }
-
-  Widget _buildTermsSection(String title, String content,
-      {bool isSmall = false}) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: isSmall ? 12 : 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style: TextStyle(
-                  fontSize: isSmall ? 15 : 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87)),
-          SizedBox(height: isSmall ? 6 : 8),
-          Text(content,
-              style: TextStyle(
-                  fontSize: isSmall ? 13 : 14,
-                  color: Colors.black87,
-                  height: 1.5)),
-        ],
-      ),
-    );
-  }
 
   // ─────────────────────────────────────────────
   //  CREATE ACCOUNT
@@ -292,16 +176,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    final email    = _emailCtl.text.trim();
-    final password = _passCtl.text;
-    final username = _nickCtl.text.trim();
+    final email       = _emailCtl.text.trim();
+    final password    = _passCtl.text;
+    final displayName = _nickCtl.text.trim();
 
     try {
       final result = await AuthService().registerWithEmailVerification(
+        displayName: displayName,
         email: email,
         password: password,
-        displayName: username,
+        passwordConfirmation: password,
+        region: _selectedRegion!,
+        ageGroup: _selectedAgeGroup!,
+        gender: _selectedGender!,
       );
+
       if (!mounted) return;
       Navigator.of(context).pop();
 
@@ -362,12 +251,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   // ─────────────────────────────────────────────
-  //  PILL FIELD
+  //  PILL CONTAINER BUILDER
   // ─────────────────────────────────────────────
   Widget _buildPillField({
     required Widget child,
-    required bool touched,
-    required bool valid,
+    bool touched = false,
+    bool valid = false,
     required double height,
   }) {
     final bc = _borderColor(touched, valid);
@@ -375,16 +264,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
       duration: const Duration(milliseconds: 220),
       height: height,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.98),
+        color: Colors.white.withValues(alpha:0.98),
         borderRadius: BorderRadius.circular(28),
-        border:
-        bc == Colors.transparent ? null : Border.all(color: bc, width: 3),
+        border: bc == Colors.transparent ? null : Border.all(color: bc, width: 3),
         boxShadow: const [
           BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
       child: ClipRRect(borderRadius: BorderRadius.circular(28), child: child),
     );
+  }
+
+  void _showTermsAndConditions() {
+    SoundManager.instance.playClick();
+    TermsDialog.show(context);
   }
 
   // ─────────────────────────────────────────────
@@ -397,7 +290,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // ── Background — BoxFit.fill so it never shrinks ──────────
           Positioned.fill(
             child: Image.asset(
               _bg,
@@ -406,32 +298,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Container(color: Colors.blue.shade200),
             ),
           ),
-
-          // ── Content ──────────────────────────────────────────────
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final maxH = constraints.maxHeight;
-                final maxW = constraints.maxWidth;
-
                 return Column(
                   children: [
-
-                    // ── Top spacer (clears background artwork header) ─
                     Expanded(flex: l.topFlex, child: const SizedBox()),
-
-                    // ── Form content ─────────────────────────────────
                     Expanded(
                       flex: l.contentFlex,
                       child: SingleChildScrollView(
-                        // Scroll safety for when keyboard is open
                         physics: const ClampingScrollPhysics(),
                         child: Padding(
                           padding: EdgeInsets.symmetric(horizontal: l.hPad),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-
                               // Nickname
                               _buildPillField(
                                 touched: _nickTouched,
@@ -442,7 +323,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   onChanged: _onNickChanged,
                                   style: TextStyle(fontSize: l.fontSize(15)),
                                   decoration: InputDecoration(
-                                    hintText: 'Nickname',
+                                    hintText: 'Nickname / Display Name',
                                     border: InputBorder.none,
                                     contentPadding: EdgeInsets.symmetric(
                                         horizontal: 20,
@@ -468,8 +349,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       controller: _emailCtl,
                                       onChanged: _onEmailChanged,
                                       keyboardType: TextInputType.emailAddress,
-                                      style:
-                                      TextStyle(fontSize: l.fontSize(15)),
+                                      style: TextStyle(fontSize: l.fontSize(15)),
                                       decoration: InputDecoration(
                                         hintText: 'Email',
                                         border: InputBorder.none,
@@ -500,10 +380,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       controller: _passCtl,
                                       onChanged: _onPassChanged,
                                       obscureText: _obscurePass,
-                                      style:
-                                      TextStyle(fontSize: l.fontSize(15)),
+                                      style: TextStyle(fontSize: l.fontSize(15)),
                                       decoration: InputDecoration(
-                                        hintText: 'Password',
+                                        hintText: 'Password (min 8, 1 uppercase, 1 num)',
                                         border: InputBorder.none,
                                         contentPadding: EdgeInsets.symmetric(
                                             horizontal: 8,
@@ -543,8 +422,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       controller: _confirmCtl,
                                       onChanged: _onConfirmChanged,
                                       obscureText: _obscureConfirm,
-                                      style:
-                                      TextStyle(fontSize: l.fontSize(15)),
+                                      style: TextStyle(fontSize: l.fontSize(15)),
                                       decoration: InputDecoration(
                                         hintText: 'Confirm password',
                                         border: InputBorder.none,
@@ -569,14 +447,75 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ]),
                               ),
 
+                              SizedBox(height: l.fieldSpacing),
+
+                              // Region Dropdown
+                              _buildPillField(
+                                height: l.fieldH,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      value: _selectedRegion,
+                                      hint: Text('Select Region', style: TextStyle(fontSize: l.fontSize(15), color: Colors.black54)),
+                                      items: _regions.map((r) => DropdownMenuItem(value: r, child: Text(r, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: l.fontSize(14))))).toList(),
+                                      onChanged: (val) => setState(() => _selectedRegion = val),
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              SizedBox(height: l.fieldSpacing),
+
+                              // Row for Age Group and Gender
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildPillField(
+                                      height: l.fieldH,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<String>(
+                                            isExpanded: true,
+                                            value: _selectedAgeGroup,
+                                            hint: Text('Age Group', style: TextStyle(fontSize: l.fontSize(15), color: Colors.black54)),
+                                            items: _ageGroups.map((a) => DropdownMenuItem(value: a, child: Text(a, style: TextStyle(fontSize: l.fontSize(14))))).toList(),
+                                            onChanged: (val) => setState(() => _selectedAgeGroup = val),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildPillField(
+                                      height: l.fieldH,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<String>(
+                                            isExpanded: true,
+                                            value: _selectedGender,
+                                            hint: Text('Gender', style: TextStyle(fontSize: l.fontSize(15), color: Colors.black54)),
+                                            items: _genders.map((g) => DropdownMenuItem(value: g, child: Text(g, style: TextStyle(fontSize: l.fontSize(14))))).toList(),
+                                            onChanged: (val) => setState(() => _selectedGender = val),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
                               SizedBox(height: l.sectionGap),
 
                               // Terms checkbox
                               Center(
                                 child: Wrap(
                                   alignment: WrapAlignment.center,
-                                  crossAxisAlignment:
-                                  WrapCrossAlignment.center,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
                                   spacing: 8,
                                   children: [
                                     SizedBox(
@@ -589,29 +528,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           setState(() => _acceptedTerms = v ?? false);
                                         },
                                         activeColor: const Color(0xFF1866B2),
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                            BorderRadius.circular(4)),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                                       ),
                                     ),
                                     GestureDetector(
-                                      onTap: _showTermsAndConditions,
+                                      onTap: _showTermsAndConditions, // Terms dialog function reference
                                       child: RichText(
                                         textAlign: TextAlign.center,
                                         text: TextSpan(
                                           text: 'I agree to the ',
-                                          style: TextStyle(
-                                              color: Colors.black87,
-                                              fontSize: l.fontSize(14)),
+                                          style: TextStyle(color: Colors.black87, fontSize: l.fontSize(14)),
                                           children: const [
                                             TextSpan(
                                               text: 'Terms and Conditions',
-                                              style: TextStyle(
-                                                color: Color(0xFF1957A8),
-                                                fontWeight: FontWeight.w600,
-                                                decoration:
-                                                TextDecoration.underline,
-                                              ),
+                                              style: TextStyle(color: Color(0xFF1957A8), fontWeight: FontWeight.w600, decoration: TextDecoration.underline),
                                             ),
                                           ],
                                         ),
@@ -631,37 +561,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   height: l.btnH,
                                   width: double.infinity,
                                   decoration: BoxDecoration(
-                                    color: _canCreate
-                                        ? const Color(0xFF1866B2)
-                                        : const Color(0xFF9BB0D1),
+                                    color: _canCreate ? const Color(0xFF1866B2) : const Color(0xFF9BB0D1),
                                     borderRadius: BorderRadius.circular(28),
-                                    boxShadow: _canCreate
-                                        ? [
-                                      const BoxShadow(
-                                          color: Colors.black26,
-                                          blurRadius: 8,
-                                          offset: Offset(0, 4))
-                                    ]
-                                        : null,
+                                    boxShadow: _canCreate ? [const BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4))] : null,
                                   ),
                                   alignment: Alignment.center,
                                   child: _isCreating
-                                      ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white))
-                                      : Text(
-                                    'Create',
-                                    style: TextStyle(
-                                      color: _canCreate
-                                          ? Colors.white
-                                          : Colors.white70,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: l.fontSize(16),
-                                    ),
-                                  ),
+                                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                      : Text('Create', style: TextStyle(color: _canCreate ? Colors.white : Colors.white70, fontWeight: FontWeight.w600, fontSize: l.fontSize(16))),
                                 ),
                               ),
 
@@ -671,29 +578,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               GestureDetector(
                                 onTap: () {
                                   SoundManager.instance.playClick();
-                                  Navigator.of(context).pushReplacement(
-                                      MaterialPageRoute(
-                                          builder: (_) => const LoginScreen()));
+                                  Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
                                 },
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 6.0),
+                                  padding: const EdgeInsets.symmetric(vertical: 6.0),
                                   child: RichText(
                                     textAlign: TextAlign.center,
                                     text: TextSpan(
                                       text: 'Existing user? ',
-                                      style: TextStyle(
-                                          color: Colors.black87,
-                                          fontSize: l.fontSize(14)),
+                                      style: TextStyle(color: Colors.black87, fontSize: l.fontSize(14)),
                                       children: const [
                                         TextSpan(
                                           text: 'Login',
-                                          style: TextStyle(
-                                            color: Color(0xFF1957A8),
-                                            fontWeight: FontWeight.w600,
-                                            decoration:
-                                            TextDecoration.underline,
-                                          ),
+                                          style: TextStyle(color: Color(0xFF1957A8), fontWeight: FontWeight.w600, decoration: TextDecoration.underline),
                                         ),
                                       ],
                                     ),

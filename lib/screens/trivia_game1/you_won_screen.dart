@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/trivia_game_manager.dart';
-import '../../services/userprofile_service.dart';
 import '../mainmenu_screen.dart';
 import 'main_trivia_screen.dart';
-import '../../services/player_stats_service.dart';
+import '../../services/game_service.dart';
 
 class YouWonScreen extends StatefulWidget {
   final int totalPoints;
@@ -85,28 +84,12 @@ class _YouWonScreenState extends State<YouWonScreen>
     _correct = gm.correctAnswers;
     _total = gm.questions.length;
 
-    try {
-      final profileService = UserProfileService();
-      await profileService.addCoins(
-        amount: _coinsEarned,
-        reason: _isPerfect
-            ? 'Perfect Trivia Game ($_correct/$_total correct)'
-            : 'Trivia Game Completed ($_correct/$_total correct)',
-      );
-      await profileService.updateGameStats(
-        gamesPlayed: 1,
-        gamesWon: 1,
-        totalScore: _gemsEarned,
-      );
-    } catch (e) {
-      debugPrint('❌ Error saving rewards: $e');
-    }
-
-    await PlayerStatsService().saveTriviaSession(
+    // Save Game Session directly to Laravel CMS via API
+    await GameSessionService().saveTriviaSession(
       correctAnswers: _correct,
-      wrongAnswers: gm.wrongAnswers,   // already tracked in TriviaGameManager
+      wrongAnswers: gm.wrongAnswers,
       totalQuestions: _total,
-      chancesUsed: gm.wrongAnswers,   // each wrong answer = 1 chance used
+      chancesUsed: gm.wrongAnswers,
       scoreEarned: _gemsEarned,
     );
 
@@ -189,9 +172,9 @@ class _YouWonScreenState extends State<YouWonScreen>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.white.withOpacity(0.10),
-                        Colors.white60.withOpacity(0.35),
-                        Colors.white70.withOpacity(0.55),
+                        Colors.white.withValues(alpha:0.10),
+                        Colors.white60.withValues(alpha:0.35),
+                        Colors.white70.withValues(alpha:0.55),
                       ],
                       stops: const [0.0, 0.5, 1.0],
                     ),
@@ -224,10 +207,10 @@ class _YouWonScreenState extends State<YouWonScreen>
                                   padding: const EdgeInsets.all(18),
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: tier.glowColor.withOpacity(0.25),
+                                    color: tier.glowColor.withValues(alpha:0.25),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: tier.glowColor.withOpacity(0.5),
+                                        color: tier.glowColor.withValues(alpha:0.5),
                                         blurRadius: 30,
                                         spreadRadius: 5,
                                       ),
@@ -256,7 +239,7 @@ class _YouWonScreenState extends State<YouWonScreen>
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.35),
+                                    color: Colors.black.withValues(alpha:0.35),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
@@ -309,7 +292,7 @@ class _YouWonScreenState extends State<YouWonScreen>
                                   imagePath: 'assets/images/pngs/gem-green.png',
                                   value: '+$_gemsEarned',
                                   label: 'GEMS',
-                                  cardColor: const Color(0xFF3D982D).withOpacity(0.3),
+                                  cardColor: const Color(0xFF3D982D).withValues(alpha:0.3),
                                   borderColor: const Color(0xFF2ECC71),
                                   valueColor: const Color(0xFF2ECC71),
                                   screenW: screenW,
@@ -322,7 +305,7 @@ class _YouWonScreenState extends State<YouWonScreen>
                                   imagePath: 'assets/images/pngs/coins.png',
                                   value: '+$_coinsEarned',
                                   label: 'COINS',
-                                  cardColor: const Color(0xFFF4A700).withOpacity(0.3),
+                                  cardColor: const Color(0xFFF4A700).withValues(alpha:0.3),
                                   borderColor: const Color(0xFFFFC200),
                                   valueColor: const Color(0xFFFFC200),
                                   screenW: screenW,
@@ -355,7 +338,7 @@ class _YouWonScreenState extends State<YouWonScreen>
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.orange.withOpacity(0.5),
+                                    color: Colors.orange.withValues(alpha:0.5),
                                     blurRadius: 16,
                                     spreadRadius: 2,
                                   ),
@@ -534,17 +517,17 @@ class _ScoreCard extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         // Dark semi-transparent card — big contrast boost
-        color: Colors.white.withOpacity(0.25),
+        color: Colors.white.withValues(alpha:0.25),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: tierColor.withOpacity(0.8), width: 2.5),
+        border: Border.all(color: tierColor.withValues(alpha:0.8), width: 2.5),
         boxShadow: [
           BoxShadow(
-            color: tierColor.withOpacity(0.3),
+            color: tierColor.withValues(alpha:0.3),
             blurRadius: 20,
             spreadRadius: 2,
           ),
           BoxShadow(
-          color: tierColor.withOpacity(0.2),
+          color: tierColor.withValues(alpha:0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -574,7 +557,7 @@ class _ScoreCard extends StatelessWidget {
                     height: 1.0,
                     shadows: [
                       Shadow(
-                        color: tierColor.withOpacity(0.5),
+                        color: tierColor.withValues(alpha:0.5),
                         blurRadius: 20,
                       )
                     ],
@@ -642,12 +625,12 @@ class _RewardCard extends StatelessWidget {
         border: Border.all(color: borderColor, width: 2),
         boxShadow: [
           BoxShadow(
-            color: borderColor.withOpacity(0.3),
+            color: borderColor.withValues(alpha:0.3),
             blurRadius: 14,
             spreadRadius: 1,
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha:0.4),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -671,7 +654,7 @@ class _RewardCard extends StatelessWidget {
               color: valueColor,
               shadows: [
                 Shadow(
-                  color: borderColor.withOpacity(0.6),
+                  color: borderColor.withValues(alpha:0.6),
                   blurRadius: 8,
                 )
               ],
@@ -742,7 +725,7 @@ class _GameButtonState extends State<_GameButton> {
             border: Border.all(color: widget.borderColor, width: 2),
             boxShadow: [
               BoxShadow(
-                color: widget.gradientColors[0].withOpacity(0.4),
+                color: widget.gradientColors[0].withValues(alpha:0.4),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),

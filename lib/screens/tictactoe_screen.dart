@@ -2,8 +2,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/energy_manager.dart';
-import '../services/userprofile_service.dart';
-import '../services/player_stats_service.dart';
+import '../services/game_service.dart';
+
+
 
 // ═══════════════════════════════════════════════════════════════
 // ENUMS
@@ -62,7 +63,7 @@ class _TicTacToeStartScreenState extends State<TicTacToeStartScreen> {
               ),
             ),
           ),
-          Container(color: Colors.black.withOpacity(0.5)),
+          Container(color: Colors.black.withValues(alpha:0.5)),
           Center(
             child: Image.asset(
               'assets/images/pngs/logo.png',
@@ -160,7 +161,7 @@ class _TicTacToeSetupScreenState extends State<TicTacToeSetupScreen> {
         children: [
           // BG
           Image.asset('assets/images/pngs/background.png', fit: BoxFit.cover),
-          Container(color: Colors.black.withOpacity(0.72)),
+          Container(color: Colors.black.withValues(alpha:0.72)),
 
           SafeArea(
             child: Center(
@@ -489,36 +490,25 @@ class _TicTacToeGameScreenState extends State<TicTacToeGameScreen> {
   }
 
   Future<void> _saveGameResult(Player winner) async {
-    try {
-      final iWon  = winner == _me;
-      final isTie = winner == Player.none;
+    final iWon  = winner == _me;
+    final isTie = winner == Player.none;
+    final String resultStr = isTie ? 'tie' : (iWon ? 'win' : 'loss');
 
-      final String result = isTie ? 'tie' : iWon ? 'win' : 'loss';
+    final scoreEarned = iWon
+        ? switch (widget.difficulty) {
+      Difficulty.easy   => 5,
+      Difficulty.medium => 15,
+      Difficulty.hard   => 30,
+    }
+        : 0;
 
-      final coins = iWon
-          ? switch (widget.difficulty) {
-        Difficulty.easy   => 5,
-        Difficulty.medium => 15,
-        Difficulty.hard   => 30,
-      }
-          : 0;
+    final success = await GameSessionService().saveTicTacToeSession(
+      result: resultStr,
+      scoreEarned: scoreEarned,
+    );
 
-      if (coins > 0) {
-        await UserProfileService()
-            .addCoins(amount: coins, reason: 'Won Tic Tac Toe');
-      }
-
-      await UserProfileService().updateGameStats(
-        gamesPlayed: 1,
-        gamesWon: iWon ? 1 : 0,
-      );
-
-      await PlayerStatsService().saveTicTacToeSession(
-        result: result,
-        scoreEarned: coins,
-      );
-    } catch (e) {
-      debugPrint('Game save error: $e');
+    if (success) {
+      debugPrint('Game session recorded successfully!');
     }
   }
 
@@ -552,7 +542,7 @@ class _TicTacToeGameScreenState extends State<TicTacToeGameScreen> {
             border: Border.all(color: accent, width: 2.5),
             boxShadow: [
               BoxShadow(
-                  color: accent.withOpacity(0.35),
+                  color: accent.withValues(alpha:0.35),
                   blurRadius: 28,
                   spreadRadius: 2),
             ],
@@ -564,7 +554,7 @@ class _TicTacToeGameScreenState extends State<TicTacToeGameScreen> {
               Container(
                 width: 72, height: 72,
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(0.15),
+                  color: accent.withValues(alpha:0.15),
                   shape: BoxShape.circle,
                   border: Border.all(color: accent, width: 2),
                 ),
@@ -588,7 +578,7 @@ class _TicTacToeGameScreenState extends State<TicTacToeGameScreen> {
                   fontSize: 30,
                   color: accent,
                   letterSpacing: 1.5,
-                  shadows: [Shadow(color: accent.withOpacity(0.5), blurRadius: 12)],
+                  shadows: [Shadow(color: accent.withValues(alpha:0.5), blurRadius: 12)],
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -701,7 +691,7 @@ class _TicTacToeGameScreenState extends State<TicTacToeGameScreen> {
         fit: StackFit.expand,
         children: [
           Image.asset('assets/images/pngs/background.png', fit: BoxFit.cover),
-          Container(color: Colors.black.withOpacity(0.72)),
+          Container(color: Colors.black.withValues(alpha:0.72)),
 
           SafeArea(
             child: Column(
@@ -827,14 +817,14 @@ class _Cell extends StatelessWidget {
 
     if (isWin) {
       final iPlayerWon = winner == meSymbol;
-      cellBg     = (iPlayerWon ? Colors.green : _C.red).withOpacity(0.2);
+      cellBg     = (iPlayerWon ? Colors.green : _C.red).withValues(alpha:0.2);
       cellBorder = iPlayerWon ? Colors.green.shade300 : Colors.red.shade300;
     } else if (player != Player.none) {
-      cellBg     = (player == Player.x ? _C.xColor : _C.oColor).withOpacity(0.1);
+      cellBg     = (player == Player.x ? _C.xColor : _C.oColor).withValues(alpha:0.1);
       cellBorder = player == Player.x ? _C.xColor : _C.oColor;
     } else {
-      cellBg     = Colors.white.withOpacity(0.06);
-      cellBorder = Colors.white.withOpacity(0.18);
+      cellBg     = Colors.white.withValues(alpha:0.06);
+      cellBorder = Colors.white.withValues(alpha:0.18);
     }
 
     return GestureDetector(
@@ -851,7 +841,7 @@ class _Cell extends StatelessWidget {
           boxShadow: isWin
               ? [
             BoxShadow(
-              color: cellBorder.withOpacity(0.4),
+              color: cellBorder.withValues(alpha:0.4),
               blurRadius: 12,
               spreadRadius: 1,
             )
@@ -862,7 +852,7 @@ class _Cell extends StatelessWidget {
           child: player == Player.none
               ? (canTap
               ? Icon(Icons.add,
-              color: Colors.white.withOpacity(0.12),
+              color: Colors.white.withValues(alpha:0.12),
               size: cellSize * 0.45)
               : const SizedBox())
               : Text(
@@ -875,7 +865,7 @@ class _Cell extends StatelessWidget {
               shadows: [
                 Shadow(
                   color: (player == Player.x ? _C.xColor : _C.oColor)
-                      .withOpacity(0.6),
+                      .withValues(alpha:0.6),
                   blurRadius: 14,
                 ),
               ],
@@ -901,9 +891,9 @@ class _Card extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.06),
+        color: Colors.white.withValues(alpha:0.06),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
+        border: Border.all(color: Colors.white.withValues(alpha:0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -943,10 +933,10 @@ class _SymbolTile extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 18),
         decoration: BoxDecoration(
-          color: chosen ? accent.withOpacity(0.18) : Colors.transparent,
+          color: chosen ? accent.withValues(alpha:0.18) : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-              color: chosen ? accent : Colors.white.withOpacity(0.18),
+              color: chosen ? accent : Colors.white.withValues(alpha:0.18),
               width: chosen ? 2.5 : 1.5),
         ),
         child: Column(children: [
@@ -956,7 +946,7 @@ class _SymbolTile extends StatelessWidget {
                   fontSize: 38,
                   color: chosen ? accent : Colors.white24,
                   shadows: chosen
-                      ? [Shadow(color: accent.withOpacity(0.6), blurRadius: 12)]
+                      ? [Shadow(color: accent.withValues(alpha:0.6), blurRadius: 12)]
                       : [])),
           const SizedBox(height: 4),
           Text(sub,
@@ -989,10 +979,10 @@ class _DiffTile extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 13),
         decoration: BoxDecoration(
-          color: chosen ? accent.withOpacity(0.18) : Colors.transparent,
+          color: chosen ? accent.withValues(alpha:0.18) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-              color: chosen ? accent : Colors.white.withOpacity(0.18),
+              color: chosen ? accent : Colors.white.withValues(alpha:0.18),
               width: chosen ? 2.5 : 1.5),
         ),
         child: Text(label,
@@ -1015,9 +1005,9 @@ class _Chip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
     decoration: BoxDecoration(
-      color: color.withOpacity(0.15),
+      color: color.withValues(alpha:0.15),
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: color.withOpacity(0.6), width: 1.5),
+      border: Border.all(color: color.withValues(alpha:0.6), width: 1.5),
     ),
     child: Text(label,
         style: TextStyle(
@@ -1045,7 +1035,7 @@ class _BigButton extends StatelessWidget {
     child: ElevatedButton(
       onPressed: onTap,
       style: ElevatedButton.styleFrom(
-        backgroundColor: onTap == null ? color.withOpacity(0.4) : color,
+        backgroundColor: onTap == null ? color.withValues(alpha:0.4) : color,
         padding: const EdgeInsets.symmetric(vertical: 17),
         shape:
         RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

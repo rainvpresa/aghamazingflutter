@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import 'screens/sun_intro_screen.dart';
 import 'screens/welcome_screen.dart';
@@ -25,9 +23,6 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-
-  // Firebase init
-  await Firebase.initializeApp();
 
   // Initialize game systems
   await EnergyManager.instance.initialize();
@@ -67,7 +62,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// Checks authentication state and routes user accordingly.
+/// Checks authentication state via Laravel token and routes user accordingly.
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -75,8 +70,8 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final authService = AuthService();
 
-    return StreamBuilder<User?>(
-      stream: authService.authStateChanges,
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: authService.getCurrentUser(),
       builder: (context, snapshot) {
         // Smooth loading screen (prevents flicker after intro)
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -86,12 +81,12 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        // Logged in → Main Menu
-        if (snapshot.hasData) {
+        // Token is valid & user is authenticated → Main Menu
+        if (snapshot.hasData && snapshot.data != null) {
           return const MainMenuScreen();
         }
 
-        // Not logged in → Welcome
+        // Not logged in or token expired → Welcome Screen
         return const WelcomeScreen();
       },
     );

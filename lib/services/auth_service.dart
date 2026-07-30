@@ -1,371 +1,206 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'energy_manager.dart';
-import 'sound_manager.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'api_config.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // Save bearer token locally
+  Future<void> _saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_token', token);
+    await prefs.setBool('isLoggedIn', true);
+  }
 
-  // Get current user
-  User? get currentUser => _auth.currentUser;
+  // Get saved bearer token
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('auth_token');
+  }
 
-  // Auth state stream
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  // Clear session on logout or token expiration
+  Future<void> _clearSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auth_token');
+    await prefs.setBool('isLoggedIn', false);
+  }
 
-  // ============================================================
-  // REGISTRATION WITH EMAIL VERIFICATION
-  // ============================================================
+  // Check login state
+  Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('isLoggedIn') ?? false;
+  }
 
-  /// Register with email verification
+  // POST /api/app/auth/register
   Future<Map<String, dynamic>> registerWithEmailVerification({
+    required String displayName,
     required String email,
     required String password,
-    required String displayName,
+    required String passwordConfirmation,
+    required String region,
+    required String ageGroup,
+    required String gender,
   }) async {
     try {
-      debugPrint('🚀 Starting registration for: $email');
-
-      // Create account - Firebase will handle if email already exists
-      UserCredential result = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/app/auth/register'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'display_name': displayName,
+          'email': email,
+          'password': password,
+          'password_confirmation': passwordConfirmation,
+          'region': region,
+          'age_group': ageGroup,
+          'gender': gender,
+        }),
       );
 
-      if (result.user == null) {
-        debugPrint('❌ User creation returned null');
-        return {
-          'success': false,
-          'message': 'Account creation failed'
-        };
-      }
+      final data = jsonDecode(response.body);
 
-      debugPrint('✅ Firebase Auth account created: ${result.user!.uid}');
-
-      // Skip display name update due to Firebase plugin bug
-      debugPrint('⚠️ Skipping display name update (will set in Firestore instead)');
-
-      // Create user profile in Firestore FIRST (while user is still authenticated)
-      try {
-        debugPrint('📝 About to create Firestore profile...');
-        await _createUserProfile(
-          userId: result.user!.uid,
-          email: email,
-          displayName: displayName,
-        );
-        debugPrint('✅ Firestore profile creation completed');
-      } catch (firestoreError) {
-        debugPrint('❌ Firestore creation failed: $firestoreError');
-
-        // Delete the auth user if Firestore creation fails
-        try {
-          await result.user!.delete();
-          debugPrint('🗑️ Auth user deleted due to Firestore failure');
-        } catch (deleteError) {
-          debugPrint('⚠️ Could not delete auth user: $deleteError');
-        }
-
-        return {
-          'success': false,
-          'message': 'Failed to create user profile: ${firestoreError.toString()}'
-        };
-      }
-
-      // Send verification email
-      debugPrint('📧 Sending verification email...');
-      try {
-        await result.user!.sendEmailVerification();
-        debugPrint('✅ Verification email sent successfully');
-      } catch (emailError) {
-        debugPrint('⚠️ Error sending verification email: $emailError');
-      }
-
-      // Sign out the user so they have to verify first
-      debugPrint('🚪 Signing out user...');
-      await _auth.signOut();
-      debugPrint('✅ User signed out');
-
-      debugPrint('🎉 Registration completed successfully!');
-      return {
-        'success': true,
-        'message': 'Account created! Please check $email for verification link.',
-        'user': result.user
-      };
-    } on FirebaseAuthException catch (e) {
-      debugPrint('❌ FirebaseAuthException: ${e.code} - ${e.message}');
-      if (e.code == 'email-already-in-use') {
-        return {
-          'success': false,
-          'message': 'This email is already registered. Please login instead.',
-          'userExists': true,
-        };
-      } else if (e.code == 'weak-password') {
-        return {
-          'success': false,
-          'message': 'Password is too weak. Use at least 6 characters.'
-        };
+      if (response.statusCode == 201) {
+        return {'success': true, 'message': data['message']};
       } else {
         return {
           'success': false,
-          'message': 'Registration failed: ${e.message}'
+          'message': data['message'] ?? 'Validation error'
         };
       }
     } catch (e) {
-      debugPrint('❌ Unexpected error: $e');
-      return {
-        'success': false,
-        'message': 'Error: $e'
-      };
+      return {'success': false, 'message': e.toString()};
     }
   }
 
-  // ============================================================
-  // LOGIN
-  // ============================================================
-
+  // POST /api/app/auth/login
   Future<Map<String, dynamic>> loginWithEmail({
     required String email,
     required String password,
   }) async {
     try {
-      UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
+      final response = await http.post(
+        Uri.parse(ApiConfig.login),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+        }),
       );
 
-      if (result.user != null) {
-        // Check if email is verified
-        if (!result.user!.emailVerified) {
-          await _auth.signOut();
-          return {
-            'success': false,
-            'message': 'Please verify your email before logging in. Check your inbox.',
-            'needsVerification': true,
-          };
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        if (data['token'] != null) {
+          await _saveToken(data['token']);
         }
-
-        // Update last login
-        await _firestore.collection('users').doc(result.user!.uid).update({
-          'lastLogin': FieldValue.serverTimestamp(),
-        });
-
-        // Save session
-        await _saveSession(result.user!.uid);
-
         return {
           'success': true,
           'message': 'Login successful',
-          'user': result.user
-        };
-      }
-
-      return {
-        'success': false,
-        'message': 'Login failed'
-      };
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
-        return {
-          'success': false,
-          'message': 'Invalid email or password'
-        };
-      } else if (e.code == 'wrong-password') {
-        return {
-          'success': false,
-          'message': 'Incorrect password'
-        };
-      } else if (e.code == 'invalid-email') {
-        return {
-          'success': false,
-          'message': 'Invalid email format'
+          'user': data['user'],
         };
       } else {
         return {
           'success': false,
-          'message': 'Login failed: ${e.message}'
+          'message': data['message'] ?? 'Invalid credentials.',
         };
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Error: $e'
-      };
+      return {'success': false, 'message': 'Network error: $e'};
     }
   }
 
-  /// Mask email for privacy (e.g., r****a@gmail.com)
-  String _maskEmail(String email) {
-    if (!email.contains('@')) return email;
+  // GET /api/app/auth/me
+  Future<Map<String, dynamic>?> getCurrentUser() async {
+    final token = await getToken();
+    if (token == null) return null;
 
-    final parts = email.split('@');
-    final localPart = parts[0];
-    final domain = parts[1];
-
-    if (localPart.length <= 2) {
-      return '${localPart[0]}***@$domain';
-    } else {
-      final firstChar = localPart[0];
-      final lastChar = localPart[localPart.length - 1];
-      final maskLength = localPart.length - 2;
-      final masked = '*' * (maskLength > 4 ? 4 : maskLength);
-
-      return '$firstChar$masked$lastChar@$domain';
-    }
-  }
-
-  // ============================================================
-  // FORGOT PASSWORD
-  // ============================================================
-  Future<Map<String, dynamic>> sendPasswordResetEmail({
-    required String email,
-  }) async {
     try {
-      debugPrint('🔍 Attempting to send password reset to: $email');
+      final response = await http.get(
+        Uri.parse(ApiConfig.me),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
 
-      await _auth.sendPasswordResetEmail(email: email);
-      debugPrint('✅ Password reset email request completed');
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        await _clearSession();
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
 
-      final maskedEmail = _maskEmail(email);
+// Forgot Password
+  Future<Map<String, dynamic>> sendPasswordResetEmail({required String email}) async {
+    return _sendEmailAction('/api/app/auth/forgot-password', email);
+  }
 
-      return {
-        'success': true,
-        'message': 'If an account exists, a password reset link has been sent to $maskedEmail. Please check your inbox and spam folder.',
-      };
-    } on FirebaseAuthException catch (e) {
-      debugPrint('❌ FirebaseAuthException: ${e.code} - ${e.message}');
+  // Resend Verification Email (Reusing the same underlying POST logic)
+  Future<Map<String, dynamic>> resendVerification({required String email}) async {
+    return _sendEmailAction('/api/app/auth/resend-verification', email);
+  }
 
-      if (e.code == 'invalid-email') {
-        return {
-          'success': false,
-          'message': 'Invalid email format'
-        };
-      } else if (e.code == 'user-not-found') {
-        final maskedEmail = _maskEmail(email);
+  // Helper method using standard http package
+  Future<Map<String, dynamic>> _sendEmailAction(String endpoint, String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}$endpoint'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({'email': email}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
         return {
           'success': true,
-          'message': 'If an account exists, a password reset link has been sent to $maskedEmail.',
-        };
-      } else if (e.code == 'too-many-requests') {
-        return {
-          'success': false,
-          'message': 'Too many attempts. Please try again later.'
+          'message': data['message'] ?? 'Action completed successfully.',
         };
       } else {
         return {
           'success': false,
-          'message': 'Error: ${e.message}'
+          'message': data['message'] ?? 'Request failed.',
         };
       }
     } catch (e) {
-      debugPrint('❌ Unexpected error: $e');
       return {
         'success': false,
-        'message': 'Error: $e'
+        'message': 'Error: $e',
       };
     }
   }
 
-  // ============================================================
-  // LOGOUT
-  // ============================================================
-
+  // POST /api/app/auth/logout
   Future<void> logout() async {
     try {
-      if (currentUser != null) {
-        final userId = currentUser!.uid;
-        // Stop music and clear session
-        await SoundManager.instance.stopMusic();
-        await _clearSession();
-        // Sign out
-        await _auth.signOut();
-
-        // Update logout time in Firestore asynchronously
-        _firestore
-            .collection('sessions')
-            .where('userId', isEqualTo: userId)
-            .where('logoutTime', isEqualTo: null)
-            .get()
-            .then((snapshot) {
-          for (var doc in snapshot.docs) {
-            doc.reference.update({
-              'logoutTime': FieldValue.serverTimestamp(),
-            });
-          }
-        }).catchError((e) {
-          debugPrint('Error updating session logout: $e');
-        });
+      final token = await getToken();
+      if (token != null) {
+        await http.post(
+          Uri.parse(ApiConfig.logout),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
       }
     } catch (e) {
-      debugPrint('Error during logout: $e');
+      debugPrint('Logout request error: $e');
+    } finally {
+      await _clearSession();
     }
-  }
-
-  // ============================================================
-  // HELPER METHODS
-  // ============================================================
-
-  /// Create user profile in Firestore
-  Future<void> _createUserProfile({
-    required String userId,
-    required String email,
-    required String displayName,
-  }) async {
-    try {
-      debugPrint('🔍 Attempting to create user profile for: $userId');
-
-      await _firestore.collection('users').doc(userId).set({
-        'email': email,
-        'displayName': displayName,
-        'coins': 0,
-        'energy': 100,         // Added initial energy
-        'totalScore': 0,      // Initialize for leaderboard query
-        'gamesPlayed': 0,     // Initialize for stats
-        'gamesWon': 0,        // Initialize for stats
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastLogin': FieldValue.serverTimestamp(),
-      });
-
-      // Reset local energy manager so the new account starts with 100 energy
-      await EnergyManager.instance.resetEnergy();
-
-      debugPrint('✅ User profile created successfully in Firestore!');
-    } catch (e) {
-      debugPrint('❌ Error creating user profile: $e');
-      rethrow;
-    }
-  }
-
-  /// Save session locally
-  Future<void> _saveSession(String userId) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('userId', userId);
-    await prefs.setBool('isLoggedIn', true);
-
-    await _firestore.collection('sessions').add({
-      'userId': userId,
-      'loginTime': FieldValue.serverTimestamp(),
-      'logoutTime': null,
-    });
-  }
-
-  /// Clear local session
-  Future<void> _clearSession() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('userId');
-    await prefs.setBool('isLoggedIn', false);
-  }
-
-  /// Check if user is logged in
-  Future<bool> isLoggedIn() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('isLoggedIn') ?? false;
-  }
-
-  /// Get saved user ID
-  Future<String?> getSavedUserId() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('userId');
   }
 }

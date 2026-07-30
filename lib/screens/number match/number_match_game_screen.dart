@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/userprofile_service.dart';
-import '../../services/player_stats_service.dart';
+import '../../services/game_service.dart';
 import '../../widgets/game_quit_handler.dart';
 
 /// Number Match - 2048-style puzzle game
@@ -248,7 +248,9 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
         if (originalPositions[j] != j) { moved = true; break; }
       }
     }
-    while (merged.length < gridSize) merged.add(null);
+    while (merged.length < gridSize) {
+      merged.add(null);
+    }
     return SlideResult(merged, moved, scoreGained);
   }
 
@@ -310,7 +312,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFFF9999).withOpacity(0.6),
+                color: const Color(0xFFFF9999).withValues(alpha:0.6),
                 blurRadius: 20,
                 spreadRadius: 5,
               ),
@@ -523,7 +525,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
                   borderRadius: BorderRadius.circular(tileSize * 0.22),
                   boxShadow: [
                     BoxShadow(
-                      color: colors[i].withOpacity(0.45),
+                      color: colors[i].withValues(alpha:0.45),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -598,12 +600,12 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
     return Container(
       padding: EdgeInsets.symmetric(vertical: w * 0.035, horizontal: w * 0.04),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.72),
+        color: Colors.white.withValues(alpha:0.72),
         borderRadius: BorderRadius.circular(w * 0.05),
-        border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.5),
+        border: Border.all(color: Colors.white.withValues(alpha:0.85), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7c3aed).withOpacity(0.08),
+            color: const Color(0xFF7c3aed).withValues(alpha:0.08),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -640,12 +642,12 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
       margin: EdgeInsets.symmetric(horizontal: w * 0.07),
       padding: EdgeInsets.all(w * 0.055),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.72),
+        color: Colors.white.withValues(alpha:0.72),
         borderRadius: BorderRadius.circular(w * 0.065),
-        border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.5),
+        border: Border.all(color: Colors.white.withValues(alpha:0.85), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7c3aed).withOpacity(0.08),
+            color: const Color(0xFF7c3aed).withValues(alpha:0.08),
             blurRadius: 24,
             offset: const Offset(0, 6),
           ),
@@ -696,7 +698,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
               borderRadius: BorderRadius.circular(w * 0.055),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF6d28d9).withOpacity(0.38),
+                  color: const Color(0xFF6d28d9).withValues(alpha:0.38),
                   blurRadius: 20,
                   offset: const Offset(0, 6),
                 ),
@@ -764,12 +766,12 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: w * 0.03),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.72),
+          color: Colors.white.withValues(alpha:0.72),
           borderRadius: BorderRadius.circular(w * 0.05),
-          border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.5),
+          border: Border.all(color: Colors.white.withValues(alpha:0.85), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF7c3aed).withOpacity(0.07),
+              color: const Color(0xFF7c3aed).withValues(alpha:0.07),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -819,7 +821,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF6d28d9).withOpacity(0.4),
+                      color: const Color(0xFF6d28d9).withValues(alpha:0.4),
                       blurRadius: 10,
                     ),
                   ],
@@ -887,12 +889,12 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
         return Container(
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.72),
+            color: Colors.white.withValues(alpha:0.72),
             borderRadius: BorderRadius.circular(available * 0.06),
-            border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.5),
+            border: Border.all(color: Colors.white.withValues(alpha:0.85), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF7c3aed).withOpacity(0.1),
+                color: const Color(0xFF7c3aed).withValues(alpha:0.1),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
@@ -940,7 +942,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
         borderRadius: BorderRadius.circular(size * 0.18),
         boxShadow: [
           BoxShadow(
-            color: _getColorForValue(cell.value)[0].withOpacity(0.5),
+            color: _getColorForValue(cell.value)[0].withValues(alpha:0.5),
             blurRadius: cell.isMerged ? 12 : 4,
             spreadRadius: cell.isMerged ? 2 : 0,
           ),
@@ -1009,9 +1011,9 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
               child: Container(
                 padding: EdgeInsets.all(w * 0.025),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.72),
+                  color: Colors.white.withValues(alpha:0.72),
                   borderRadius: BorderRadius.circular(w * 0.03),
-                  border: Border.all(color: Colors.white.withOpacity(0.85), width: 1.5),
+                  border: Border.all(color: Colors.white.withValues(alpha:0.85), width: 1.5),
                 ),
                 child: Icon(Icons.arrow_back_rounded,
                     color: const Color(0xFF6d28d9), size: w * 0.055),
@@ -1033,9 +1035,9 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
     return Container(
       padding: EdgeInsets.symmetric(vertical: w * 0.025, horizontal: w * 0.02),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha:0.12),
         borderRadius: BorderRadius.circular(w * 0.03),
-        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+        border: Border.all(color: color.withValues(alpha:0.3), width: 1.5),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1093,7 +1095,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
                   BoxShadow(
                     color: (isWinner
                         ? const Color(0xFFFFD700)
-                        : const Color(0xFF6d28d9)).withOpacity(0.45),
+                        : const Color(0xFF6d28d9)).withValues(alpha:0.45),
                     blurRadius: 30,
                     spreadRadius: 8,
                   ),
@@ -1132,12 +1134,12 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
               width: double.infinity,
               padding: EdgeInsets.all(w * 0.06),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.78),
+                color: Colors.white.withValues(alpha:0.78),
                 borderRadius: BorderRadius.circular(w * 0.07),
-                border: Border.all(color: Colors.white.withOpacity(0.9), width: 2),
+                border: Border.all(color: Colors.white.withValues(alpha:0.9), width: 2),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF7c3aed).withOpacity(0.1),
+                    color: const Color(0xFF7c3aed).withValues(alpha:0.1),
                     blurRadius: 30,
                     offset: const Offset(0, 10),
                   ),
@@ -1183,10 +1185,10 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
                         child: Container(
                           padding: EdgeInsets.symmetric(vertical: h * 0.015, horizontal: w * 0.03),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFdb2777).withOpacity(0.1),
+                            color: const Color(0xFFdb2777).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(w * 0.04),
                             border: Border.all(
-                                color: const Color(0xFFdb2777).withOpacity(0.3), width: 1.5),
+                                color: const Color(0xFFdb2777).withValues(alpha: 0.3), width: 1.5),
                           ),
                           child: Column(
                             children: [
@@ -1213,10 +1215,10 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
                         child: Container(
                           padding: EdgeInsets.symmetric(vertical: h * 0.015, horizontal: w * 0.03),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF059669).withOpacity(0.1),
+                            color: const Color(0xFF059669).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(w * 0.04),
                             border: Border.all(
-                                color: const Color(0xFF059669).withOpacity(0.3), width: 1.5),
+                                color: const Color(0xFF059669).withValues(alpha: 0.3), width: 1.5),
                           ),
                           child: Column(
                             children: [
@@ -1280,12 +1282,12 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
         padding: EdgeInsets.symmetric(vertical: w * 0.038),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [color, color.withOpacity(0.8)],
+            colors: [color, color.withValues(alpha: 0.8)],
           ),
           borderRadius: BorderRadius.circular(w * 0.045),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.35),
+              color: color.withValues(alpha: 0.35),
               blurRadius: 14,
               offset: const Offset(0, 6),
             ),
@@ -1438,14 +1440,14 @@ class _Blob extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withOpacity(0.45),
+        color: color.withValues(alpha: 0.45),
       ),
       child: BackdropFilter(
         filter: const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
         child: Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: color.withOpacity(0.0),
+            color: color.withValues(alpha: 0.0),
           ),
         ),
       ),
@@ -1497,15 +1499,15 @@ extension NumberMatchScore on UserProfileService {
   Future<void> saveNumberMatchRewards(int score, int highestTile, int level) async {
     try {
       final coinsEarned = (score / 10).floor().clamp(0, 999);
-      await addCoins(amount: coinsEarned, reason: 'Number Match Score: $score');
-      final bool won = highestTile >= 2048;
-      await updateGameStats(gamesPlayed: 1, gamesWon: won ? 1 : 0, totalScore: score);
-      await PlayerStatsService().saveNumberMatchSession(
+
+      // Pass everything directly to GameSessionService
+      await GameSessionService().saveNumberMatchSession(
         finalScore: score,
         highestTile: highestTile,
         levelReached: level,
         coinsEarned: coinsEarned,
       );
+
       debugPrint('✅ Number Match saved: $score pts, $coinsEarned coins');
     } catch (e) {
       debugPrint('❌ Error saving Number Match rewards: $e');

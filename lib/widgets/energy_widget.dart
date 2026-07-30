@@ -45,8 +45,22 @@ class _EnergyWidgetState extends State<EnergyWidget> {
   }
 
   void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _loadEnergy();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (!mounted) return;
+
+      // Calculate display time locally without hitting storage every second
+      final timeNext = await _energyManager.getTimeUntilNextEnergyFormatted();
+
+      if (mounted) {
+        setState(() {
+          _nextEnergyTime = timeNext;
+        });
+
+        // Refresh full energy count when timer resets back to 00:00
+        if (timeNext == '00:00') {
+          _loadEnergy();
+        }
+      }
     });
   }
 
@@ -69,10 +83,11 @@ class _EnergyWidgetState extends State<EnergyWidget> {
         const SizedBox(width: 4),
         Text(
           '$_currentEnergy',
-          style: widget.textStyle ?? const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: widget.textStyle ??
+              const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
         ),
         if (_currentEnergy < EnergyManager.maxEnergy) ...[
           const SizedBox(width: 4),

@@ -50,16 +50,16 @@ class _QT {
   static const goldShadow= Color(0xFFFFB300);
 
   // Quit — warm brown with good contrast
-  static const brownTop  = Color(0xd4354d);
-  static const brownBot  = Color(0xe01433);
-  static const brownShadow = Color(0xd4354d);
+  static const brownTop  = Color(0x00d4354d);
+  static const brownBot  = Color(0x00e01433);
+  static const brownShadow = Color(0x00d4354d);
 
   static const white     = Colors.white;
   static const fontFamily = 'LilitaOne';
 
   static List<BoxShadow> glow(Color c, {double blur = 14, double spread = 3}) => [
-    BoxShadow(color: c.withOpacity(0.75), blurRadius: blur,      spreadRadius: spread),
-    BoxShadow(color: c.withOpacity(0.35), blurRadius: blur * 2,  spreadRadius: spread * 0.4),
+    BoxShadow(color: c.withValues(alpha:0.75), blurRadius: blur,      spreadRadius: spread),
+    BoxShadow(color: c.withValues(alpha:0.35), blurRadius: blur * 2,  spreadRadius: spread * 0.4),
   ];
 }
 
@@ -98,12 +98,12 @@ class _QuitConfirmDialog extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(radius),
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end:   Alignment.bottomRight,
             colors: [_QT.panelTop, _QT.panelBot],
           ),
-          border: Border.all(color: _QT.accent.withOpacity(0.75), width: 2.5),
+          border: Border.all(color: _QT.accent.withValues(alpha:0.75), width: 2.5),
           boxShadow: [
             ..._QT.glow(_QT.accent, blur: 30, spread: 4),
             const BoxShadow(
@@ -123,7 +123,7 @@ class _QuitConfirmDialog extends StatelessWidget {
                       begin: Alignment.topCenter,
                       end:   Alignment.bottomCenter,
                       colors: [
-                        Colors.white.withOpacity(0.08),
+                        Colors.white.withValues(alpha:0.08),
                         Colors.transparent,
                       ],
                     ),
@@ -210,7 +210,7 @@ class _CryingIcon extends StatelessWidget {
         gradient: const RadialGradient(
           colors: [Color(0xFF5195CC), Color(0xFF86E7FF)],
         ),
-        border: Border.all(color: _QT.accent.withOpacity(0.8), width: 2.5),
+        border: Border.all(color: _QT.accent.withValues(alpha:0.8), width: 2.5),
         boxShadow: _QT.glow(_QT.accent, blur: 22, spread: 2),
       ),
       child: ClipOval(
@@ -248,7 +248,7 @@ class _TitleText extends StatelessWidget {
         color:         _QT.white,
         letterSpacing: 1.4,
         shadows: [
-          Shadow(color: _QT.accent.withOpacity(0.8), blurRadius: 10),
+          Shadow(color: _QT.accent.withValues(alpha:0.8), blurRadius: 10),
           const Shadow(
               color: Color(0x99000000), blurRadius: 4, offset: Offset(0, 2)),
         ],
@@ -269,9 +269,9 @@ class _MessageText extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        color:  Colors.white.withOpacity(0.07),
+        color:  Colors.white.withValues(alpha:0.07),
         border: Border.all(
-            color: _QT.accent.withOpacity(0.25), width: 1),
+            color: _QT.accent.withValues(alpha:0.25), width: 1),
       ),
       child: Text(
         message,
@@ -279,7 +279,7 @@ class _MessageText extends StatelessWidget {
         style: TextStyle(
           fontFamily: _QT.fontFamily,
           fontSize:   fontSize,
-          color:      Colors.white.withOpacity(0.80),
+          color:      Colors.white.withValues(alpha:0.80),
           height:     1.4,
           fontWeight: FontWeight.w600,
         ),
@@ -304,7 +304,7 @@ class _StarDivider extends StatelessWidget {
             isCenter ? Icons.star_rounded : Icons.star_outline_rounded,
             color: isCenter
                 ? const Color(0xFFFFD700)
-                : Colors.white.withOpacity(0.28),
+                : Colors.white.withValues(alpha:0.28),
             size: isCenter ? ref * 0.042 : ref * 0.028,
             shadows: isCenter
                 ? [const Shadow(color: Color(0xFFFFD700), blurRadius: 8)]
@@ -360,18 +360,18 @@ class _ArcadeDialogButtonState extends State<_ArcadeDialogButton> {
             ),
             boxShadow: [
               BoxShadow(
-                color:      widget.bottom.withOpacity(0.9),
+                color:      widget.bottom.withValues(alpha:0.9),
                 blurRadius: 0, spreadRadius: 0,
                 offset:     Offset(0, _pressed ? 1 : 4),
               ),
               BoxShadow(
-                  color: widget.shadow.withOpacity(0.55),
+                  color: widget.shadow.withValues(alpha:0.55),
                   blurRadius: 14, spreadRadius: 1),
               BoxShadow(
-                  color: widget.shadow.withOpacity(0.22), blurRadius: 26),
+                  color: widget.shadow.withValues(alpha:0.22), blurRadius: 26),
             ],
             border: Border.all(
-                color: Colors.white.withOpacity(0.25), width: 1.5),
+                color: Colors.white.withValues(alpha:0.25), width: 1.5),
           ),
           child: Stack(alignment: Alignment.center, children: [
             // Gloss highlight
@@ -386,7 +386,7 @@ class _ArcadeDialogButtonState extends State<_ArcadeDialogButton> {
                       begin: Alignment.topCenter,
                       end:   Alignment.bottomCenter,
                       colors: [
-                        Colors.white.withOpacity(0.30),
+                        Colors.white.withValues(alpha:0.30),
                         Colors.transparent,
                       ],
                     ),
@@ -408,7 +408,7 @@ class _ArcadeDialogButtonState extends State<_ArcadeDialogButton> {
                         size: widget.fontSize + 4,
                         shadows: [
                           Shadow(
-                              color: Colors.black.withOpacity(0.45),
+                              color: Colors.black.withValues(alpha:0.45),
                               blurRadius: 4),
                         ]),
                     const SizedBox(width: 6),

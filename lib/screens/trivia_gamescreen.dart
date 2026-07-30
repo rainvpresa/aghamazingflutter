@@ -208,7 +208,7 @@ class _ARScanScreenState extends State<ARScanScreen> with SingleTickerProviderSt
                           decoration: BoxDecoration(
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.cyan.withOpacity(0.8),
+                                color: Colors.cyan.withValues(alpha:0.8),
                                 blurRadius: 10,
                                 spreadRadius: 2,
                               ),
@@ -354,7 +354,7 @@ class _GameSelectionDialog extends StatelessWidget {
           border: Border.all(color: Colors.cyanAccent, width: 3),
           boxShadow: [
             BoxShadow(
-              color: Colors.cyan.withOpacity(0.5),
+              color: Colors.cyan.withValues(alpha:0.5),
               blurRadius: 20,
               spreadRadius: 5,
             ),
@@ -417,7 +417,7 @@ class _GameSelectionDialog extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.5),
+              color: color.withValues(alpha:0.5),
               blurRadius: 10,
               spreadRadius: 2,
             ),
