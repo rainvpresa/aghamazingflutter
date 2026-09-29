@@ -13,7 +13,7 @@ class GameSessionService {
 
     try {
       final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/app/game/$endpoint'),
+        Uri.parse('${ApiConfig.baseUrl}/api/app/game/$endpoint'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -41,10 +41,12 @@ class GameSessionService {
     required int totalQuestions,
     required int chancesUsed,
     required int scoreEarned,
+    required int coinsEarned,
     int durationSeconds = 0,
   }) async {
     return _postGameSession('trivia', {
       'score_earned': scoreEarned,
+      'coins_earned': coinsEarned,
       'correct_answers': correctAnswers,
       'wrong_answers': wrongAnswers,
       'total_questions': totalQuestions,
@@ -53,21 +55,20 @@ class GameSessionService {
     });
   }
 
-  /// POST /api/app/game/tictactoe
+  /// POST /api/app/game/tic-tac-toe
   Future<bool> saveTicTacToeSession({
-    required String result, // 'win', 'loss', or 'draw'
+    required String result, // 'win', 'loss', or 'tie'
     required int scoreEarned,
     int durationSeconds = 0,
   }) async {
-    return _postGameSession('tictactoe', {
+    return _postGameSession('tic-tac-toe', {
       'result': result,
       'score_earned': scoreEarned,
       'duration_seconds': durationSeconds,
-
     });
   }
 
-  /// POST /api/app/game/numbermatch
+  /// POST /api/app/game/number-match
   Future<bool> saveNumberMatchSession({
     required int finalScore,
     required int highestTile,
@@ -75,7 +76,7 @@ class GameSessionService {
     required int coinsEarned,
     int durationSeconds = 0,
   }) async {
-    return _postGameSession('numbermatch', {
+    return _postGameSession('number-match', {
       'score_earned': finalScore,
       'highest_tile': highestTile,
       'level_reached': levelReached,
@@ -100,6 +101,7 @@ class GameSessionService {
       'duration_seconds': durationSeconds,
     });
   }
+
   /// POST /api/app/game/color-puzzle
   Future<bool> saveColorPuzzleSession({
     required int scoreEarned,

@@ -91,6 +91,7 @@ class _YouWonScreenState extends State<YouWonScreen>
       totalQuestions: _total,
       chancesUsed: gm.wrongAnswers,
       scoreEarned: _gemsEarned,
+      coinsEarned: _coinsEarned,
     );
 
     gm.endGame();

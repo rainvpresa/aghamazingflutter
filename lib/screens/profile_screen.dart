@@ -90,20 +90,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       _nameController.text  = user['display_name'] ?? user['name'] ?? '';
       _emailController.text = user['email'] ?? '';
-      _selectedAvatarId     = user['avatar_pool_id'];
+      final avatar = user['avatar'] as Map<String, dynamic>?;
+      _selectedAvatarId = avatar?['id'] as int?;
+      _profileAvatarUrl = avatar?['image_url'] as String?;
+    }
 
-      if (user['avatar_url'] != null) {
-        _profileAvatarUrl = user['avatar_url'];
-      } else if (_selectedAvatarId != null && _avatarPool.isNotEmpty) {
-        final match = _avatarPool.firstWhere(
-              (a) => a['id'] == _selectedAvatarId,
-          orElse: () => null,
-        );
-        if (match != null) {
-          _profileAvatarUrl = match['image_url'];
-        }
-      }
-    } catch (e) {
+    catch (e) {
       debugPrint('Error loading profile: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

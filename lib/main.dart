@@ -14,6 +14,7 @@ import 'screens/tictactoe_screen.dart';
 import 'services/auth_service.dart';
 import 'services/energy_manager.dart';
 import 'services/sound_manager.dart';
+import 'services/route_observer.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +38,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorObservers: [routeObserver],
       title: 'AGHAMazing',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

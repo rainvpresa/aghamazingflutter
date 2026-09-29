@@ -11,7 +11,7 @@ class PlayerStatsService {
   Future<List<dynamic>> getLeaderboard() async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/app/leaderboard'),
+        Uri.parse('${ApiConfig.baseUrl}/api/app/leaderboard'),
         headers: {'Accept': 'application/json'},
       );
 
@@ -27,17 +27,21 @@ class PlayerStatsService {
   /// GET /api/app/profile/stats
   Future<Map<String, dynamic>?> getPlayerStats() async {
     final token = await _authService.getToken();
-    if (token == null) return null;
+    if (token == null) {
+      debugPrint('STATS: no token');
+      return null;
+    }
 
     try {
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/app/profile/stats'),
+        Uri.parse('${ApiConfig.baseUrl}/api/app/profile/stats'),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
       );
 
+      debugPrint('STATS ${response.statusCode}: ${response.body}');
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }

@@ -12,6 +12,7 @@ import 'profile_screen.dart';
 import 'chatbot_screen.dart';
 import 'scan_screen.dart';
 import '../screens/gemgrab/gem_grab_game_screen.dart';
+import '../services/route_observer.dart';
 
 class UiAssets {
   static Map<String, String>? _cache;
@@ -84,7 +85,7 @@ class _MainMenuBody extends StatefulWidget {
   State<_MainMenuBody> createState() => _MainMenuBodyState();
 }
 
-class _MainMenuBodyState extends State<_MainMenuBody> {
+class _MainMenuBodyState extends State<_MainMenuBody> with RouteAware {
   Timer? _energyRegenTimer;
   int _timeUntilNextRegen = 0;
   final int _maxEnergy = 100;
@@ -102,6 +103,19 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
       _startEnergyRegenTimer();
       _loadLeaderboard();
     });
+  }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) routeObserver.subscribe(this, route);
+  }
+
+  @override
+  void didPopNext() {
+    debugPrint('MENU didPopNext -> refreshing');
+    SessionService.instance.fetchStats();
+    _loadLeaderboard();
   }
 
   Future<void> _loadLeaderboard() async {
@@ -533,7 +547,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
                                       rank: index + 1,
                                       displayName: player['display_name'] ?? player['name'] ?? 'Anonymous',
                                       score: player['total_score'] ?? player['coins'] ?? player['score'] ?? 0,
-                                      avatarPath: player['avatar_url'] ?? player['avatar_path'] ?? '',
+                                      avatarPath: player['avatar']?['image_url'] ?? '',
                                       itemBgAsset: asset('leaderboard_item_bg'),
                                       rankBadgeAsset: asset('rank_${index + 1}_badge'),
                                       rankLabelAsset: asset('rank_${index + 1}_label'),
@@ -610,6 +624,7 @@ class _MainMenuBodyState extends State<_MainMenuBody> {
 
   @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _energyRegenTimer?.cancel();
     super.dispose();
   }
@@ -866,7 +881,7 @@ class _LeaderboardItem extends StatelessWidget {
                 ),
                 child: ClipOval(
                   child: avatarPath.isNotEmpty
-                      ? Image.asset(
+                      ? Image.network(
                     avatarPath,
                     width: 80,
                     height: 80,

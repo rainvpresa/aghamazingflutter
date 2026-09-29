@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/userprofile_service.dart';
 import '../services/sound_manager.dart'; // 🔊 added
 import '../services/faq_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_config.dart';
 
 // ─────────────────────────────────────────────
 //  DOST-STII BRAND COLORS
@@ -38,7 +40,9 @@ class _Layout {
   }
 
   int get gridColumns => screenWidth > screenHeight ? 5 : 3;
+
   double get hPad => r(16).clamp(12.0, 32.0);
+
   double get bubbleMaxWidth => screenWidth * 0.72;
 }
 
@@ -62,14 +66,40 @@ class FaqCategory {
 class FaqItem {
   final String question;
   final String answer;
-  final List<String>? actionButtons;
+  final List<FaqActionButton>? actionButtons;
+  final List<FaqItem>? followUps;
 
   const FaqItem({
     required this.question,
     required this.answer,
     this.actionButtons,
+    this.followUps,
   });
 }
+
+class FaqActionButton {
+  final String label;
+  final String type; // 'url' | 'maps' | 'phone' | 'email' | 'screen'
+  final String value;
+
+  const FaqActionButton({
+    required this.label,
+    required this.type,
+    required this.value,
+  });
+
+  factory FaqActionButton.fromJson(Map<String, dynamic> json) {
+    return FaqActionButton(
+      label: json['label'] as String,
+      type: json['type'] as String,
+      value: json['value'] as String,
+    );
+  }
+}
+
+const kStiiWebsiteUrl = 'https://www.stii.dost.gov.ph';
+const kMapsUrl =
+    'https://www.google.com/maps/search/?api=1&query=DOST-STII+Bicutan+Taguig';
 
 // ─────────────────────────────────────────────
 //  HARDCODED FALLBACK FAQ CONTENT
@@ -83,20 +113,38 @@ final List<FaqCategory> kFaqCategories = [
       FaqItem(
         question: 'What is DOST-STII?',
         answer:
-        'The Science and Technology Information Institute (STII) is an agency under the Department of Science and Technology (DOST) of the Philippines. It serves as the country\'s primary S&T information clearing house, disseminating science and technology information to the public.',
-        actionButtons: ['Visit Website'],
+            'The Science and Technology Information Institute (STII) is an agency under the Department of Science and Technology (DOST) of the Philippines. It serves as the country\'s primary S&T information clearing house, disseminating science and technology information to the public.',
+        actionButtons: [
+          FaqActionButton(
+            label: 'Visit Website',
+            type: 'url',
+            value: kStiiWebsiteUrl,
+          ),
+        ],
       ),
       FaqItem(
         question: 'What is STII\'s mandate?',
         answer:
-        'STII\'s mandate is to serve as the S&T information clearing house of the Philippines. It collects, processes, and disseminates S&T information, and promotes awareness of the country\'s S&T activities, achievements, and resources.',
-        actionButtons: ['Visit Website'],
+            'STII\'s mandate is to serve as the S&T information clearing house of the Philippines. It collects, processes, and disseminates S&T information, and promotes awareness of the country\'s S&T activities, achievements, and resources.',
+        actionButtons: [
+          FaqActionButton(
+            label: 'Visit Website',
+            type: 'url',
+            value: kStiiWebsiteUrl,
+          ),
+        ],
       ),
       FaqItem(
         question: 'Where is STII located?',
         answer:
-        'DOST-STII is located at the DOST Compound, General Santos Avenue, Bicutan, Taguig City, Metro Manila, Philippines.',
-        actionButtons: ['Get Directions'],
+            'DOST-STII is located at the DOST Compound, General Santos Avenue, Bicutan, Taguig City, Metro Manila, Philippines.',
+        actionButtons: [
+          FaqActionButton(
+            label: 'Get Directions',
+            type: 'maps',
+            value: kMapsUrl,
+          ),
+        ],
       ),
     ],
   ),
@@ -108,17 +156,17 @@ final List<FaqCategory> kFaqCategories = [
       FaqItem(
         question: 'What services does STII offer?',
         answer:
-        'STII offers a wide range of services including: S&T Information Services, Library and Reference Services, Science Journalism Training, Digital Publishing, STARBOOKS (Science and Technology Academic and Research-Based Openly Operated KioskS), and the InfoSerbilis mobile library.',
+            'STII offers a wide range of services including: S&T Information Services, Library and Reference Services, Science Journalism Training, Digital Publishing, STARBOOKS (Science and Technology Academic and Research-Based Openly Operated KioskS), and the InfoSerbilis mobile library.',
       ),
       FaqItem(
         question: 'What is STARBOOKS?',
         answer:
-        'STARBOOKS (Science and Technology Academic and Research-Based Openly Operated KioskS) is a digital library developed by DOST-STII. It provides access to science and technology learning resources for schools and communities in the Philippines, especially in areas with limited internet connectivity.',
+            'STARBOOKS (Science and Technology Academic and Research-Based Openly Operated KioskS) is a digital library developed by DOST-STII. It provides access to science and technology learning resources for schools and communities in the Philippines, especially in areas with limited internet connectivity.',
       ),
       FaqItem(
         question: 'What is InfoSerbilis?',
         answer:
-        'InfoSerbilis is DOST-STII\'s mobile library and information service that brings S&T information directly to communities. It operates as a mobile unit that visits schools, barangays, and public events to deliver science and technology resources.',
+            'InfoSerbilis is DOST-STII\'s mobile library and information service that brings S&T information directly to communities. It operates as a mobile unit that visits schools, barangays, and public events to deliver science and technology resources.',
       ),
     ],
   ),
@@ -130,17 +178,17 @@ final List<FaqCategory> kFaqCategories = [
       FaqItem(
         question: 'What publications does STII produce?',
         answer:
-        'STII produces several S&T publications including: S&T Post (newsletter), Philippine Journal of Science (peer-reviewed journal), DOST Digest, Balitang Rapidost, Philippine Men & Women of Science, SPHERES, and Philippine S&T Abstracts.',
+            'STII produces several S&T publications including: S&T Post (newsletter), Philippine Journal of Science (peer-reviewed journal), DOST Digest, Balitang Rapidost, Philippine Men & Women of Science, SPHERES, and Philippine S&T Abstracts.',
       ),
       FaqItem(
         question: 'How can I access the Philippine Journal of Science?',
         answer:
-        'The Philippine Journal of Science is available online at philjournalsci.dost.gov.ph. It is a peer-reviewed, open-access journal that publishes original research in natural, applied, and social sciences.',
+            'The Philippine Journal of Science is available online at philjournalsci.dost.gov.ph. It is a peer-reviewed, open-access journal that publishes original research in natural, applied, and social sciences.',
       ),
       FaqItem(
         question: 'Can I submit articles to STII publications?',
         answer:
-        'Yes! STII welcomes submissions for its various publications. For the Philippine Journal of Science, researchers may submit manuscripts through the journal\'s official website. For other publications like the S&T Post, you may contact STII directly.',
+            'Yes! STII welcomes submissions for its various publications. For the Philippine Journal of Science, researchers may submit manuscripts through the journal\'s official website. For other publications like the S&T Post, you may contact STII directly.',
       ),
     ],
   ),
@@ -152,17 +200,17 @@ final List<FaqCategory> kFaqCategories = [
       FaqItem(
         question: 'What is the Science Journo Ako program?',
         answer:
-        'Science Journo Ako is a DOST-STII training program that capacitates media practitioners, students, and communicators in science journalism. It aims to improve the quality of science reporting in the Philippines.',
+            'Science Journo Ako is a DOST-STII training program that capacitates media practitioners, students, and communicators in science journalism. It aims to improve the quality of science reporting in the Philippines.',
       ),
       FaqItem(
         question: 'Does STII have programs for students?',
         answer:
-        'Yes! STII has programs for students including STARBOOKS access in schools, Science Journo Ako for aspiring science journalists, and various science communication workshops and training programs.',
+            'Yes! STII has programs for students including STARBOOKS access in schools, Science Journo Ako for aspiring science journalists, and various science communication workshops and training programs.',
       ),
       FaqItem(
         question: 'What is SCALEUP?',
         answer:
-        'SCALEUP (Science Communication and Literacy Enhancement Under the Philippine Science) is an STII initiative that includes programs such as Science Journo Ako, Make Your Library Alive (MYLA), Lights Camera Rolling, and Navigating STARBOOKS Through User-Centric Learning.',
+            'SCALEUP (Science Communication and Literacy Enhancement Under the Philippine Science) is an STII initiative that includes programs such as Science Journo Ako, Make Your Library Alive (MYLA), Lights Camera Rolling, and Navigating STARBOOKS Through User-Centric Learning.',
       ),
     ],
   ),
@@ -174,13 +222,19 @@ final List<FaqCategory> kFaqCategories = [
       FaqItem(
         question: 'How can I contact STII?',
         answer:
-        'You can reach DOST-STII through the following:\n• Visit: DOST Compound, General Santos Avenue, Bicutan, Taguig City\n• Website: www.stii.dost.gov.ph\n• Use the Contact Us page on the STII website for inquiries.',
-        actionButtons: ['Contact Form'],
+            'You can reach DOST-STII through the following:\n• Visit: DOST Compound, General Santos Avenue, Bicutan, Taguig City\n• Website: www.stii.dost.gov.ph\n• Use the Contact Us page on the STII website for inquiries.',
+        actionButtons: [
+          FaqActionButton(
+            label: 'Contact Form',
+            type: 'screen',
+            value: 'feedback_form',
+          ),
+        ],
       ),
       FaqItem(
         question: 'What are STII\'s office hours?',
         answer:
-        'DOST-STII operates on regular government office hours: Monday to Friday, 8:00 AM to 5:00 PM, except on official holidays. For online inquiries, you may submit through the website at any time.',
+            'DOST-STII operates on regular government office hours: Monday to Friday, 8:00 AM to 5:00 PM, except on official holidays. For online inquiries, you may submit through the website at any time.',
       ),
     ],
   ),
@@ -196,12 +250,16 @@ List<TextSpan> _parseBoldText(String text, TextStyle base) {
 
   for (final match in regex.allMatches(text)) {
     if (match.start > cursor) {
-      spans.add(TextSpan(text: text.substring(cursor, match.start), style: base));
+      spans.add(
+        TextSpan(text: text.substring(cursor, match.start), style: base),
+      );
     }
-    spans.add(TextSpan(
-      text: match.group(1),
-      style: base.copyWith(fontWeight: FontWeight.w700),
-    ));
+    spans.add(
+      TextSpan(
+        text: match.group(1),
+        style: base.copyWith(fontWeight: FontWeight.w700),
+      ),
+    );
     cursor = match.end;
   }
   if (cursor < text.length) {
@@ -236,12 +294,7 @@ class ChatMessage {
   final FaqCategory? category;
   final FaqItem? faqItem;
 
-  ChatMessage({
-    this.text,
-    required this.type,
-    this.category,
-    this.faqItem,
-  });
+  ChatMessage({this.text, required this.type, this.category, this.faqItem});
 }
 
 // ─────────────────────────────────────────────
@@ -262,10 +315,6 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   List<FaqCategory> _faqCategories = [];
   bool _isLoadingFaq = true;
 
-  static const String _mapsUrl =
-      'https://www.google.com/maps/search/?api=1&query=DOST-STII+Bicutan+Taguig';
-  static const String _stiiWebsiteUrl = 'https://www.stii.dost.gov.ph';
-
   @override
   void initState() {
     super.initState();
@@ -285,11 +334,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   void _addWelcomeMessages() {
     Future.delayed(const Duration(milliseconds: 300), () {
       _addBotMessage(
-          "Magandang araw! 👋 I'm Smarty, your DOST-STII virtual assistant.");
+        "Magandang araw! 👋 I'm Smarty, your DOST-STII virtual assistant.",
+      );
     });
     Future.delayed(const Duration(milliseconds: 900), () {
       _addBotMessage(
-          "I can help you with information about our services, publications, programs, and more. What would you like to know today?");
+        "I can help you with information about our services, publications, programs, and more. What would you like to know today?",
+      );
     });
     Future.delayed(const Duration(milliseconds: 1500), () {
       setState(() {
@@ -344,15 +395,16 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         if (!mounted) return;
         setState(() {
           _isTyping = false;
-          _messages.add(ChatMessage(
-            text:
-            "Here are some common questions about **${category.label}**. Tap one to get an answer:",
-            type: MessageType.bot,
-          ));
-          _messages.add(ChatMessage(
-            type: MessageType.answerCard,
-            category: category,
-          ));
+          _messages.add(
+            ChatMessage(
+              text:
+                  "Here are some common questions about **${category.label}**. Tap one to get an answer:",
+              type: MessageType.bot,
+            ),
+          );
+          _messages.add(
+            ChatMessage(type: MessageType.answerCard, category: category),
+          );
         });
         _scrollToBottom();
       });
@@ -377,14 +429,39 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       setState(() {
         _isTyping = false;
         _messages.add(
-            ChatMessage(text: item.answer, type: MessageType.bot, faqItem: item));
+          ChatMessage(text: item.answer, type: MessageType.bot, faqItem: item),
+        );
       });
 
       final bool hasButtons =
           item.actionButtons != null && item.actionButtons!.isNotEmpty;
+      final bool hasFollowUps =
+          item.followUps != null && item.followUps!.isNotEmpty;
+
+      if (hasFollowUps) {
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (!mounted) return;
+          setState(() {
+            _messages.add(ChatMessage(
+              text: 'You might also want to ask:',
+              type: MessageType.bot,
+            ));
+            _messages.add(ChatMessage(
+              type: MessageType.answerCard,
+              category: FaqCategory(
+                id: 'follow_ups',
+                label: 'Follow-up questions',
+                icon: Icons.help_outline_rounded,
+                items: item.followUps!,
+              ),
+            ));
+          });
+          _scrollToBottom();
+        });
+      }
 
       if (hasButtons) {
-        Future.delayed(const Duration(milliseconds: 200), () {
+        Future.delayed(const Duration(milliseconds: 400), () {
           if (!mounted) return;
           setState(() {
             _messages.add(ChatMessage(
@@ -403,8 +480,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   void _showFollowUp() {
     Future.delayed(const Duration(milliseconds: 600), () {
       if (!mounted) return;
-      _addBotMessage("Is there anything else I can help you with?",
-          animate: false);
+      _addBotMessage(
+        "Is there anything else I can help you with?",
+        animate: false,
+      );
       Future.delayed(const Duration(milliseconds: 200), () {
         if (!mounted) return;
         setState(() {
@@ -419,9 +498,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open link.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open link.')));
     }
   }
 
@@ -439,39 +518,44 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     );
   }
 
-  void _onActionButtonTapped(String label) {
-    SoundManager.instance.playClick(); // 🔊
-    switch (label) {
-      case 'Visit Website':
-        _launchUrl(_stiiWebsiteUrl);
+  Future<void> _onFaqActionTapped(FaqActionButton button) async {
+    SoundManager.instance.playClick();
+    switch (button.type) {
+      case 'url':
+      case 'maps':
+        _launchUrl(button.value);
         break;
-      case 'Get Directions':
-        _launchUrl(_mapsUrl);
+      case 'phone':
+        _launchUrl('tel:${button.value}');
         break;
-      case 'Contact Form':
-        _showFeedbackModal(); // 🔊 already has its own click inside
+      case 'email':
+        _launchUrl('mailto:${button.value}');
         break;
-      case 'Back to Menu':
-        setState(() {
-          _messages
-              .add(ChatMessage(text: 'Back to Menu', type: MessageType.user));
-        });
-        _addBotMessage("Sure! Here are our main topics. How can I help you?",
-            animate: false);
-        Future.delayed(const Duration(milliseconds: 200), () {
-          if (!mounted) return;
+      case 'screen':
+        if (button.value == 'feedback_form') {
+          _showFeedbackModal();
+        } else {
+          // Unknown/unwired screen — shouldn't happen once the CMS and
+          // app screen lists are kept in sync, but fail safely.
           setState(() {
-            _messages.add(ChatMessage(type: MessageType.categoryGrid));
+            _messages.add(
+              ChatMessage(text: button.label, type: MessageType.user),
+            );
           });
-          _scrollToBottom();
-        });
+          _addBotMessage(
+            "That option isn't available yet. Please try another option or contact us directly.",
+          );
+        }
         break;
       default:
         setState(() {
-          _messages.add(ChatMessage(text: label, type: MessageType.user));
+          _messages.add(
+            ChatMessage(text: button.label, type: MessageType.user),
+          );
         });
         _addBotMessage(
-            "For \"$label\", please visit our website at www.stii.dost.gov.ph or contact us directly.");
+          "For \"${button.label}\", please visit our website at www.stii.dost.gov.ph or contact us directly.",
+        );
     }
   }
 
@@ -492,7 +576,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             child: ListView.builder(
               controller: _scrollController,
               padding: EdgeInsets.symmetric(
-                  horizontal: layout.hPad, vertical: layout.r(12)),
+                horizontal: layout.hPad,
+                vertical: layout.r(12),
+              ),
               itemCount: _messages.length + (_isTyping ? 1 : 0),
               itemBuilder: (context, index) {
                 if (_isTyping && index == _messages.length) {
@@ -535,8 +621,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             child: ClipOval(
               child: Padding(
                 padding: EdgeInsets.all(layout.r(6)),
-                child: Icon(Icons.support_agent_rounded,
-                    color: kYaleBlue, size: iconSize),
+                child: Icon(
+                  Icons.support_agent_rounded,
+                  color: kYaleBlue,
+                  size: iconSize,
+                ),
               ),
             ),
           ),
@@ -547,9 +636,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               Text(
                 'Smarty Bird',
                 style: TextStyle(
-                    fontSize: layout.sp(15),
-                    fontWeight: FontWeight.w700,
-                    color: kWhite),
+                  fontSize: layout.sp(15),
+                  fontWeight: FontWeight.w700,
+                  color: kWhite,
+                ),
               ),
               Row(
                 children: [
@@ -562,10 +652,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                     ),
                   ),
                   SizedBox(width: layout.r(4)),
-                  Text('Online',
-                      style: TextStyle(
-                          fontSize: layout.sp(11),
-                          color: const Color(0xFFBFD9F5))),
+                  Text(
+                    'Online',
+                    style: TextStyle(
+                      fontSize: layout.sp(11),
+                      color: const Color(0xFFBFD9F5),
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -580,23 +673,32 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     return Container(
       color: const Color(0xFFFFF8E1),
       padding: EdgeInsets.symmetric(
-          horizontal: layout.hPad, vertical: layout.r(8)),
+        horizontal: layout.hPad,
+        vertical: layout.r(8),
+      ),
       child: Row(
         children: [
-          Icon(Icons.campaign_rounded,
-              size: layout.r(16), color: const Color(0xFFF59E0B)),
+          Icon(
+            Icons.campaign_rounded,
+            size: layout.r(16),
+            color: const Color(0xFFF59E0B),
+          ),
           SizedBox(width: layout.r(8)),
           Expanded(
             child: Text(
               'Visit stii.dost.gov.ph for the latest S&T news and updates.',
               style: TextStyle(
-                  fontSize: layout.sp(12),
-                  color: const Color(0xFF92400E),
-                  fontWeight: FontWeight.w500),
+                fontSize: layout.sp(12),
+                color: const Color(0xFF92400E),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-          Icon(Icons.chevron_right_rounded,
-              size: layout.r(16), color: const Color(0xFFF59E0B)),
+          Icon(
+            Icons.chevron_right_rounded,
+            size: layout.r(16),
+            color: const Color(0xFFF59E0B),
+          ),
         ],
       ),
     );
@@ -609,7 +711,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       case MessageType.bot:
         return _buildBotBubble(msg.text!, layout);
       case MessageType.categoryGrid:
-        if (msg.faqItem != null) return _buildActionButtons(msg.faqItem!, layout);
+        if (msg.faqItem != null)
+          return _buildActionButtons(msg.faqItem!, layout);
         return _buildCategoryGrid(layout);
       case MessageType.answerCard:
         return _buildQuestionList(msg.category!, layout);
@@ -625,7 +728,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           constraints: BoxConstraints(maxWidth: layout.bubbleMaxWidth),
           child: Container(
             padding: EdgeInsets.symmetric(
-                horizontal: layout.r(16), vertical: layout.r(12)),
+              horizontal: layout.r(16),
+              vertical: layout.r(12),
+            ),
             decoration: BoxDecoration(
               color: kYaleBlue,
               borderRadius: const BorderRadius.only(
@@ -636,15 +741,19 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                    color: kYaleBlue.withValues(alpha:0.25),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3))
+                  color: kYaleBlue.withValues(alpha: 0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
               ],
             ),
             child: Text(
               text,
               style: TextStyle(
-                  color: kWhite, fontSize: layout.sp(14), height: 1.4),
+                color: kWhite,
+                fontSize: layout.sp(14),
+                height: 1.4,
+              ),
             ),
           ),
         ),
@@ -667,20 +776,26 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                    color: kYaleBlue.withValues(alpha:0.3),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2))
+                  color: kYaleBlue.withValues(alpha: 0.3),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
-            child: Icon(Icons.support_agent_rounded,
-                color: kWhite, size: layout.r(18)),
+            child: Icon(
+              Icons.support_agent_rounded,
+              color: kWhite,
+              size: layout.r(18),
+            ),
           ),
           Flexible(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: layout.bubbleMaxWidth),
               child: Container(
                 padding: EdgeInsets.symmetric(
-                    horizontal: layout.r(16), vertical: layout.r(12)),
+                  horizontal: layout.r(16),
+                  vertical: layout.r(12),
+                ),
                 decoration: BoxDecoration(
                   color: kWhite,
                   borderRadius: const BorderRadius.only(
@@ -691,17 +806,19 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withValues(alpha:0.07),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3))
+                      color: Colors.black.withValues(alpha: 0.07),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
                   ],
                 ),
                 child: _RichText(
                   text,
                   style: TextStyle(
-                      color: kEerieBlack,
-                      fontSize: layout.sp(14),
-                      height: 1.5),
+                    color: kEerieBlack,
+                    fontSize: layout.sp(14),
+                    height: 1.5,
+                  ),
                 ),
               ),
             ),
@@ -722,24 +839,25 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             child: Text(
               'Browse by category:',
               style: TextStyle(
-                  fontSize: layout.sp(12),
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w500),
+                fontSize: layout.sp(12),
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           _isLoadingFaq
               ? const Center(child: CircularProgressIndicator())
               : GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: layout.gridColumns,
-            mainAxisSpacing: layout.r(10),
-            crossAxisSpacing: layout.r(10),
-            childAspectRatio: 1.1,
-            children: _faqCategories
-                .map((cat) => _buildCategoryCard(cat, layout))
-                .toList(),
-          ),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: layout.gridColumns,
+                  mainAxisSpacing: layout.r(10),
+                  crossAxisSpacing: layout.r(10),
+                  childAspectRatio: 1.1,
+                  children: _faqCategories
+                      .map((cat) => _buildCategoryCard(cat, layout))
+                      .toList(),
+                ),
         ],
       ),
     );
@@ -754,9 +872,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           borderRadius: BorderRadius.circular(layout.r(14)),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withValues(alpha:0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 2))
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
         child: Column(
@@ -776,9 +895,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               cat.label,
               textAlign: TextAlign.center,
               style: TextStyle(
-                  fontSize: layout.sp(11),
-                  fontWeight: FontWeight.w600,
-                  color: kEerieBlack),
+                fontSize: layout.sp(11),
+                fontWeight: FontWeight.w600,
+                color: kEerieBlack,
+              ),
             ),
           ],
         ),
@@ -805,34 +925,47 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         width: double.infinity,
         margin: EdgeInsets.only(bottom: layout.r(8), right: layout.r(20)),
         padding: EdgeInsets.symmetric(
-            horizontal: layout.r(16), vertical: layout.r(12)),
+          horizontal: layout.r(16),
+          vertical: layout.r(12),
+        ),
         decoration: BoxDecoration(
           color: kWhite,
           borderRadius: BorderRadius.circular(layout.r(12)),
-          border: Border.all(color: kYaleBlue.withValues(alpha:0.25), width: 1),
+          border: Border.all(
+            color: kYaleBlue.withValues(alpha: 0.25),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withValues(alpha:0.04),
-                blurRadius: 4,
-                offset: const Offset(0, 2))
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
         child: Row(
           children: [
-            Icon(Icons.help_outline_rounded,
-                size: layout.r(16), color: kYaleBlue),
+            Icon(
+              Icons.help_outline_rounded,
+              size: layout.r(16),
+              color: kYaleBlue,
+            ),
             SizedBox(width: layout.r(10)),
             Expanded(
               child: Text(
                 item.question,
                 style: TextStyle(
-                    fontSize: layout.sp(13),
-                    color: kYaleBlue,
-                    fontWeight: FontWeight.w500),
+                  fontSize: layout.sp(13),
+                  color: kYaleBlue,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-            Icon(Icons.chevron_right_rounded,
-                size: layout.r(16), color: kYaleBlue),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: layout.r(16),
+              color: kYaleBlue,
+            ),
           ],
         ),
       ),
@@ -846,76 +979,119 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         spacing: layout.r(8),
         runSpacing: layout.r(8),
         children: [
-          ...item.actionButtons!
-              .map((label) => _buildActionButton(label, layout)),
-          _buildActionButton('Back to Menu', layout,
-              isSecondary: true, icon: Icons.home_rounded),
+          ...?item.actionButtons?.map(
+            (btn) => _buildFaqActionButton(btn, layout),
+          ),
+          _buildBackToMenuButton(layout),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton(String label, _Layout layout,
-      {bool isSecondary = false, IconData? icon}) {
-    final bool isLink = label == 'Visit Website';
+  Widget _buildFaqActionButton(FaqActionButton button, _Layout layout) {
+    final icon = switch (button.type) {
+      'url' => Icons.open_in_new_rounded,
+      'maps' => Icons.directions_rounded,
+      'phone' => Icons.call_rounded,
+      'email' => Icons.email_outlined,
+      'screen' => Icons.arrow_forward_rounded,
+      _ => Icons.arrow_forward_rounded,
+    };
+    final bool isLink = button.type == 'url';
 
     return GestureDetector(
-      onTap: () => _onActionButtonTapped(label), // 🔊 sound called inside
+      onTap: () => _onFaqActionTapped(button),
       child: Container(
         padding: EdgeInsets.symmetric(
-            horizontal: layout.r(14), vertical: layout.r(9)),
+          horizontal: layout.r(14),
+          vertical: layout.r(9),
+        ),
         decoration: BoxDecoration(
-          color: isSecondary
-              ? kWhite
-              : isLink
-              ? const Color(0xFFE8F0F9)
-              : kRedPigment,
+          color: isLink ? const Color(0xFFE8F0F9) : kRedPigment,
           borderRadius: BorderRadius.circular(layout.r(20)),
-          border: isSecondary
-              ? Border.all(color: kRedPigment, width: 1.5)
-              : isLink
-              ? Border.all(color: kYaleBlue.withValues(alpha:0.4), width: 1)
+          border: isLink
+              ? Border.all(color: kYaleBlue.withValues(alpha: 0.4), width: 1)
               : null,
           boxShadow: [
             BoxShadow(
-                color: (isLink ? kYaleBlue : kRedPigment).withValues(alpha:0.18),
-                blurRadius: 6,
-                offset: const Offset(0, 3))
+              color: (isLink ? kYaleBlue : kRedPigment).withValues(alpha: 0.18),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
           ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon ??
-                  (isLink
-                      ? Icons.open_in_new_rounded
-                      : label == 'Get Directions'
-                      ? Icons.directions_rounded
-                      : label == 'Contact Form'
-                      ? Icons.feedback_outlined
-                      : Icons.arrow_forward_rounded),
-              size: layout.r(14),
-              color: isSecondary
-                  ? kRedPigment
-                  : isLink
-                  ? kYaleBlue
-                  : kWhite,
-            ),
+            Icon(icon, size: layout.r(14), color: isLink ? kYaleBlue : kWhite),
             SizedBox(width: layout.r(5)),
             Text(
-              label,
+              button.label,
               style: TextStyle(
                 fontSize: layout.sp(12),
                 fontWeight: FontWeight.w600,
-                color: isSecondary
-                    ? kRedPigment
-                    : isLink
-                    ? kYaleBlue
-                    : kWhite,
-                decoration:
-                isLink ? TextDecoration.underline : TextDecoration.none,
+                color: isLink ? kYaleBlue : kWhite,
+                decoration: isLink
+                    ? TextDecoration.underline
+                    : TextDecoration.none,
                 decorationColor: kYaleBlue,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackToMenuButton(_Layout layout) {
+    return GestureDetector(
+      onTap: () {
+        SoundManager.instance.playClick();
+        setState(() {
+          _messages.add(
+            ChatMessage(text: 'Back to Menu', type: MessageType.user),
+          );
+        });
+        _addBotMessage(
+          "Sure! Here are our main topics. How can I help you?",
+          animate: false,
+        );
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (!mounted) return;
+          setState(() {
+            _messages.add(ChatMessage(type: MessageType.categoryGrid));
+          });
+          _scrollToBottom();
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: layout.r(14),
+          vertical: layout.r(9),
+        ),
+        decoration: BoxDecoration(
+          color: kWhite,
+          borderRadius: BorderRadius.circular(layout.r(20)),
+          border: Border.all(color: kRedPigment, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: kRedPigment.withValues(alpha: 0.18),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.home_rounded, size: layout.r(14), color: kRedPigment),
+            SizedBox(width: layout.r(5)),
+            Text(
+              'Back to Menu',
+              style: TextStyle(
+                fontSize: layout.sp(12),
+                fontWeight: FontWeight.w600,
+                color: kRedPigment,
               ),
             ),
           ],
@@ -934,21 +1110,29 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             height: layout.r(32),
             margin: EdgeInsets.only(right: layout.r(8)),
             decoration: const BoxDecoration(
-                color: kYaleBlue, shape: BoxShape.circle),
-            child: Icon(Icons.support_agent_rounded,
-                color: kWhite, size: layout.r(18)),
+              color: kYaleBlue,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.support_agent_rounded,
+              color: kWhite,
+              size: layout.r(18),
+            ),
           ),
           Container(
             padding: EdgeInsets.symmetric(
-                horizontal: layout.r(16), vertical: layout.r(12)),
+              horizontal: layout.r(16),
+              vertical: layout.r(12),
+            ),
             decoration: BoxDecoration(
               color: kWhite,
               borderRadius: BorderRadius.circular(layout.r(18)),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha:0.07),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3))
+                  color: Colors.black.withValues(alpha: 0.07),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
               ],
             ),
             child: const _TypingDots(),
@@ -972,10 +1156,7 @@ class _FeedbackModal extends StatefulWidget {
   final String username;
   final String userId;
 
-  const _FeedbackModal({
-    required this.username,
-    required this.userId,
-  });
+  const _FeedbackModal({required this.username, required this.userId});
 
   @override
   State<_FeedbackModal> createState() => _FeedbackModalState();
@@ -986,31 +1167,39 @@ class _FeedbackModalState extends State<_FeedbackModal> {
   int _rating = 0;
   bool _isSubmitting = false;
   bool _submitted = false;
+  String? _errorMessage;
 
   Future<void> _submit() async {
     SoundManager.instance.playClick();
     final text = _feedbackController.text.trim();
-    if (_rating == 0 && text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'Please provide a rating or feedback before submitting.')),
+
+    // Rating is required (backend: rating required, int 1-5)
+    if (_rating == 0) {
+      setState(
+        () => _errorMessage = 'Please select a star rating before submitting.',
       );
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
 
     try {
-      // ✅ Replace Firestore with your backend API call:
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token') ?? '';
+
       final response = await http.post(
-        Uri.parse('https://your-laravel-api.com/api/chatbot-feedback'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('${ApiConfig.baseUrl}/api/app/feedback'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        },
         body: jsonEncode({
-          'user_id': widget.userId,
-          'username': widget.username,
-          'feedback': text,
           'rating': _rating,
+          'message': text.isEmpty ? null : text,
         }),
       );
 
@@ -1025,10 +1214,10 @@ class _FeedbackModalState extends State<_FeedbackModal> {
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit: $e')),
-      );
+      setState(() {
+        _isSubmitting = false;
+        _errorMessage = 'Failed to submit. Please try again.';
+      });
     }
   }
 
@@ -1036,15 +1225,20 @@ class _FeedbackModalState extends State<_FeedbackModal> {
   Widget build(BuildContext context) {
     final layout = _Layout.of(context);
     return Padding(
-      padding:
-      EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: const BoxDecoration(
           color: kWhite,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: EdgeInsets.fromLTRB(
-            layout.r(24), layout.r(16), layout.r(24), layout.r(32)),
+          layout.r(24),
+          layout.r(16),
+          layout.r(24),
+          layout.r(32),
+        ),
         child: _submitted ? _buildSuccess(layout) : _buildForm(layout),
       ),
     );
@@ -1062,16 +1256,20 @@ class _FeedbackModalState extends State<_FeedbackModal> {
             color: Color(0xFFE6F4EA),
             shape: BoxShape.circle,
           ),
-          child: Icon(Icons.check_rounded,
-              color: const Color(0xFF34A853), size: layout.r(36)),
+          child: Icon(
+            Icons.check_rounded,
+            color: const Color(0xFF34A853),
+            size: layout.r(36),
+          ),
         ),
         SizedBox(height: layout.r(16)),
         Text(
           'Thank you for your feedback!',
           style: TextStyle(
-              fontSize: layout.sp(17),
-              fontWeight: FontWeight.w700,
-              color: kEerieBlack),
+            fontSize: layout.sp(17),
+            fontWeight: FontWeight.w700,
+            color: kEerieBlack,
+          ),
         ),
         SizedBox(height: layout.r(8)),
         Text(
@@ -1087,16 +1285,21 @@ class _FeedbackModalState extends State<_FeedbackModal> {
               backgroundColor: kYaleBlue,
               foregroundColor: kWhite,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(layout.r(14))),
+                borderRadius: BorderRadius.circular(layout.r(14)),
+              ),
               padding: EdgeInsets.symmetric(vertical: layout.r(14)),
             ),
             onPressed: () {
               SoundManager.instance.playClick(); // 🔊
               Navigator.of(context).pop();
             },
-            child: Text('Close',
-                style: TextStyle(
-                    fontWeight: FontWeight.w600, fontSize: layout.sp(14))),
+            child: Text(
+              'Close',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: layout.sp(14),
+              ),
+            ),
           ),
         ),
       ],
@@ -1128,8 +1331,11 @@ class _FeedbackModalState extends State<_FeedbackModal> {
                 color: kLightBlue,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.feedback_outlined,
-                  color: kYaleBlue, size: layout.r(20)),
+              child: Icon(
+                Icons.feedback_outlined,
+                color: kYaleBlue,
+                size: layout.r(20),
+              ),
             ),
             SizedBox(width: layout.r(12)),
             Expanded(
@@ -1139,14 +1345,17 @@ class _FeedbackModalState extends State<_FeedbackModal> {
                   Text(
                     'Share Your Feedback',
                     style: TextStyle(
-                        fontSize: layout.sp(16),
-                        fontWeight: FontWeight.w700,
-                        color: kEerieBlack),
+                      fontSize: layout.sp(16),
+                      fontWeight: FontWeight.w700,
+                      color: kEerieBlack,
+                    ),
                   ),
                   Text(
                     'Help us improve DOST-STII\'s chatbot',
-                    style:
-                    TextStyle(fontSize: layout.sp(12), color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: layout.sp(12),
+                      color: Colors.grey,
+                    ),
                   ),
                 ],
               ),
@@ -1157,9 +1366,10 @@ class _FeedbackModalState extends State<_FeedbackModal> {
         Text(
           'How would you rate your experience?',
           style: TextStyle(
-              fontSize: layout.sp(13),
-              fontWeight: FontWeight.w600,
-              color: kEerieBlack),
+            fontSize: layout.sp(13),
+            fontWeight: FontWeight.w600,
+            color: kEerieBlack,
+          ),
         ),
         SizedBox(height: layout.r(10)),
         Row(
@@ -1168,7 +1378,10 @@ class _FeedbackModalState extends State<_FeedbackModal> {
             return GestureDetector(
               onTap: () {
                 SoundManager.instance.playClick(); // 🔊
-                setState(() => _rating = starIndex);
+                setState(() {
+                  _rating = starIndex;
+                  _errorMessage = null;
+                });
               },
               child: Padding(
                 padding: EdgeInsets.only(right: layout.r(6)),
@@ -1191,18 +1404,20 @@ class _FeedbackModalState extends State<_FeedbackModal> {
             child: Text(
               ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent!'][_rating],
               style: TextStyle(
-                  fontSize: layout.sp(12),
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFFF59E0B)),
+                fontSize: layout.sp(12),
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFFF59E0B),
+              ),
             ),
           ),
         SizedBox(height: layout.r(20)),
         Text(
           'Additional comments (optional)',
           style: TextStyle(
-              fontSize: layout.sp(13),
-              fontWeight: FontWeight.w600,
-              color: kEerieBlack),
+            fontSize: layout.sp(13),
+            fontWeight: FontWeight.w600,
+            color: kEerieBlack,
+          ),
         ),
         SizedBox(height: layout.r(8)),
         TextField(
@@ -1213,7 +1428,9 @@ class _FeedbackModalState extends State<_FeedbackModal> {
           decoration: InputDecoration(
             hintText: 'Tell us about your experience...',
             hintStyle: TextStyle(
-                color: Colors.grey.shade400, fontSize: layout.sp(14)),
+              color: Colors.grey.shade400,
+              fontSize: layout.sp(14),
+            ),
             filled: true,
             fillColor: kGrey,
             contentPadding: EdgeInsets.all(layout.r(14)),
@@ -1222,9 +1439,35 @@ class _FeedbackModalState extends State<_FeedbackModal> {
               borderSide: BorderSide.none,
             ),
             counterStyle: TextStyle(
-                fontSize: layout.sp(11), color: Colors.grey.shade400),
+              fontSize: layout.sp(11),
+              color: Colors.grey.shade400,
+            ),
           ),
         ),
+        if (_errorMessage != null)
+          Padding(
+            padding: EdgeInsets.only(top: layout.r(4)),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: layout.r(16),
+                  color: kRedPigment,
+                ),
+                SizedBox(width: layout.r(6)),
+                Expanded(
+                  child: Text(
+                    _errorMessage!,
+                    style: TextStyle(
+                      fontSize: layout.sp(12),
+                      fontWeight: FontWeight.w600,
+                      color: kRedPigment,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         SizedBox(height: layout.r(8)),
         SizedBox(
           width: double.infinity,
@@ -1233,21 +1476,28 @@ class _FeedbackModalState extends State<_FeedbackModal> {
               backgroundColor: kYaleBlue,
               foregroundColor: kWhite,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(layout.r(14))),
+                borderRadius: BorderRadius.circular(layout.r(14)),
+              ),
               padding: EdgeInsets.symmetric(vertical: layout.r(14)),
             ),
-            onPressed: _isSubmitting ? null : _submit, // 🔊 sound called inside _submit
+            onPressed: _isSubmitting ? null : _submit,
+            // 🔊 sound called inside _submit
             child: _isSubmitting
                 ? SizedBox(
-              height: layout.r(18),
-              width: layout.r(18),
-              child: const CircularProgressIndicator(
-                  color: kWhite, strokeWidth: 2),
-            )
-                : Text('Submit Feedback',
-                style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: layout.sp(14))),
+                    height: layout.r(18),
+                    width: layout.r(18),
+                    child: const CircularProgressIndicator(
+                      color: kWhite,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Text(
+                    'Submit Feedback',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: layout.sp(14),
+                    ),
+                  ),
           ),
         ),
       ],
@@ -1292,16 +1542,14 @@ class _TypingDotsState extends State<_TypingDots>
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (i) {
-            final double offset =
-            ((_controller.value * 3) - i).clamp(0.0, 1.0);
-            final double bounce =
-            offset < 0.5 ? offset * 2 : (1 - offset) * 2;
+            final double offset = ((_controller.value * 3) - i).clamp(0.0, 1.0);
+            final double bounce = offset < 0.5 ? offset * 2 : (1 - offset) * 2;
             return Container(
               margin: const EdgeInsets.symmetric(horizontal: 3),
               width: 7,
               height: 7 + (bounce * 5),
               decoration: BoxDecoration(
-                color: kYaleBlue.withValues(alpha:0.5 + bounce * 0.5),
+                color: kYaleBlue.withValues(alpha: 0.5 + bounce * 0.5),
                 shape: BoxShape.circle,
               ),
             );

@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'api_config.dart'; // Ensure base URL is loaded from here
+import 'api_config.dart';
 
 class TriviaQuestion {
   final String id;
@@ -51,7 +51,7 @@ class TriviaService {
         if (difficulty != null) 'difficulty': difficulty,
       };
 
-      final uri = Uri.parse('${ApiConfig.baseUrl}/trivia')
+      final uri = Uri.parse('${ApiConfig.baseUrl}/api/trivia')
           .replace(queryParameters: queryParams);
 
       final response = await http.get(
@@ -60,14 +60,12 @@ class TriviaService {
       );
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> decoded = jsonDecode(response.body);
+        // Laravel returns a bare JSON array, not { "data": [...] }
+        final List<dynamic> list = jsonDecode(response.body) as List<dynamic>;
 
-        // Handles both direct array responses or wrapped JSON responses e.g. { "data": [...] }
-        final List<dynamic> list = decoded.containsKey('data')
-            ? decoded['data']
-            : jsonDecode(response.body);
-
-        return list.map((item) => TriviaQuestion.fromJson(item as Map<String, dynamic>)).toList();
+        return list
+            .map((item) => TriviaQuestion.fromJson(item as Map<String, dynamic>))
+            .toList();
       } else {
         debugPrint('TriviaService HTTP error: ${response.statusCode}');
         return [];

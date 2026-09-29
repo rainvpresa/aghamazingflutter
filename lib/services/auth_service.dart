@@ -66,7 +66,7 @@ class AuthService {
       } else {
         return {
           'success': false,
-          'message': data['message'] ?? 'Validation error'
+          'message': data['message'] ?? data['errors']?.toString() ?? 'Something went wrong (${response.statusCode}). Please try again.'
         };
       }
     } catch (e) {

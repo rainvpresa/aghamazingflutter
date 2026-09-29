@@ -27,9 +27,12 @@ class SessionService extends ChangeNotifier {
     try {
       final stats = await _statsService.getPlayerStats();
       if (stats != null) {
-        // 'coins' from AppUser DB mapped to bubblePower in UI
-        _bubblePower = stats['coins'] ?? _bubblePower;
-        _gems = stats['gems'] ?? _gems;
+        // Server nests totals under "overall": { coins, total_score, ... }
+        final overall = (stats['overall'] as Map<String, dynamic>?) ?? stats;
+        _bubblePower = (overall['coins'] as num?)?.toInt() ?? _bubblePower;
+        _gems = (overall['total_score'] as num?)?.toInt()
+            ?? (overall['gems'] as num?)?.toInt()
+            ?? _gems;
         _energy = stats['energy'] ?? await EnergyManager.instance.getCurrentEnergy();
         notifyListeners();
       }

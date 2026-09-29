@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
@@ -9,11 +8,13 @@ import 'dart:convert';
 
 import '../../services/energy_manager.dart';
 import '../../services/sound_manager.dart';
+import '../../services/api_config.dart';
 import 'trivia_game1/main_trivia_screen.dart';
 import 'number match/number_match_game_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'color game/color_game.dart';
 import 'tictactoe_screen.dart';
+import 'gemgrab/gem_grab_game_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════
 // MODELS & SERVICES FOR DYNAMIC MARKERS
@@ -30,20 +31,106 @@ class MarkerModel {
     return MarkerModel(
       id: json['id'] as int,
       keyword: (json['keyword'] as String).toUpperCase(),
-      title: json['title'] as String?,
+      title: json['name'] as String?,
     );
   }
+}
+
+/// Parsed from the "content" object in a scan response — the
+/// info-overlay content, shown alone for action_type 'info', or as an
+/// optional intro alongside a game for 'specific_game'/'random_game'.
+class ScanContent {
+  final String? title;
+  final String? description;
+  final String? mediaUrl;
+  final String? mediaType;
+
+  ScanContent({this.title, this.description, this.mediaUrl, this.mediaType});
+
+  factory ScanContent.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return ScanContent();
+    return ScanContent(
+      title: json['title'] as String?,
+      description: json['description'] as String?,
+      mediaUrl: json['media_url'] as String?,
+      mediaType: json['media_type'] as String?,
+    );
+  }
+}
+
+/// Parsed from the "game" object — only present when action_type is
+/// 'specific_game' or 'random_game'.
+class ScanGame {
+  final String gameType;
+  final int? categoryId;
+  final String? sessionId;
+
+  ScanGame({required this.gameType, this.categoryId, this.sessionId});
+
+  factory ScanGame.fromJson(Map<String, dynamic> json) {
+    return ScanGame(
+      gameType: json['game_type'] as String,
+      categoryId: json['category_id'] as int?,
+      sessionId: json['session_id'] as String?,
+    );
+  }
+}
+
+/// The full parsed response from POST /api/app/game/scan.
+class ScanResult {
+  final String keyword;
+  final String actionType; // 'info' | 'specific_game' | 'random_game'
+  final ScanContent content;
+  final ScanGame? game;
+
+  ScanResult({
+    required this.keyword,
+    required this.actionType,
+    required this.content,
+    this.game,
+  });
+
+  factory ScanResult.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>?;
+
+    // New contract: { data: { keyword, action_type, content, game } }
+    if (data != null) {
+      return ScanResult(
+        keyword: data['keyword'] as String,
+        actionType: data['action_type'] as String? ?? 'info',
+        content: ScanContent.fromJson(data['content'] as Map<String, dynamic>?),
+        game: data['game'] != null
+            ? ScanGame.fromJson(data['game'] as Map<String, dynamic>)
+            : null,
+      );
+    }
+
+    // Current server shape: { message, marker: { keyword, name, description, ... } }
+    final marker = (json['marker'] as Map<String, dynamic>?) ?? {};
+    return ScanResult(
+      keyword: marker['keyword'] as String? ?? '',
+      actionType: 'info',
+      content: ScanContent(
+        title: marker['name'] as String?,
+        description: marker['description'] as String?,
+        mediaUrl: marker['media_url'] as String?,
+        mediaType: marker['media_type'] as String?,
+      ),
+    );
+  }
+
 }
 
 class MarkerService {
   MarkerService._();
   static final MarkerService instance = MarkerService._();
 
-  // 1. Fetch active markers from Laravel: GET /api/markers
+  /// Fetch active markers from Laravel: GET /api/markers
+  /// Used to build the local keyword list the OCR matches against.
   Future<List<MarkerModel>> fetchActiveMarkers() async {
     try {
       final response = await http.get(
-        Uri.parse('https://your-laravel-api.com/api/markers'),
+        Uri.parse('${ApiConfig.baseUrl}/api/markers'),
         headers: {'Accept': 'application/json'},
       );
 
@@ -57,21 +144,27 @@ class MarkerService {
     return [];
   }
 
-  // 2. Log scan for analytics in Laravel: POST /api/app/game/scan
-  Future<void> logMarkerScan(String keyword, String authToken) async {
+  /// POST /api/app/game/scan
+  Future<ScanResult?> scanMarker(String keyword, String authToken) async {
     try {
-      await http.post(
-        Uri.parse('https://your-laravel-api.com/api/app/game/scan'),
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/app/game/scan'),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $authToken',
         },
-        body: jsonEncode({'keyword': keyword}), // Matches Laravel's expected 'keyword' key
+        body: jsonEncode({'keyword': keyword}),
       );
+
+      debugPrint('SCAN RESPONSE ${response.statusCode}: ${response.body}');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return ScanResult.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      }
     } catch (e) {
-      debugPrint('Error logging scan analytics: $e');
+      debugPrint('Error scanning marker: $e');
     }
+    return null;
   }
 }
 
@@ -107,12 +200,14 @@ class _ARScanScreenState extends State<ARScanScreen>
   // Stores dynamically loaded markers from Laravel
   List<MarkerModel> _dynamicMarkers = [];
 
-  final List<GameRoute> _games = [
-    GameRoute(name: 'Trivia Challenge', route: (_) => const MainTriviaScreen()),
-    GameRoute(name: 'Number Match',     route: (_) => const NumberMatchGameScreen()),
-    GameRoute(name: 'Color Puzzle',     route: (_) => const ColorPuzzleGame()),
-    GameRoute(name: 'Tic Tac Toe',      route: (_) => const TicTacToeStartScreen()),
-  ];
+  // Keyed by the exact game_type strings the backend uses.
+  late final Map<String, GameRoute> _games = {
+    'trivia':        GameRoute(name: 'Trivia Challenge', route: (_) => const MainTriviaScreen()),
+    'color_puzzle':  GameRoute(name: 'Color Puzzle',      route: (_) => const ColorPuzzleGame()),
+    'number_match':  GameRoute(name: 'Number Match',      route: (_) => const NumberMatchGameScreen()),
+    'gem_grab':      GameRoute(name: 'Gem Grab',          route: (_) => const GemGrabGameScreen()),
+    'tic_tac_toe':   GameRoute(name: 'Tic Tac Toe',       route: (_) => const TicTacToeStartScreen()),
+  };
 
   @override
   void initState() {
@@ -131,6 +226,7 @@ class _ARScanScreenState extends State<ARScanScreen>
   /// Fetches markers dynamically from the Laravel CMS
   Future<void> _loadMarkersFromApi() async {
     final markers = await MarkerService.instance.fetchActiveMarkers();
+    debugPrint('SCAN: loaded ${markers.length} markers: ${markers.map((m) => m.keyword).toList()}');
     if (mounted) {
       setState(() => _dynamicMarkers = markers);
     }
@@ -181,10 +277,12 @@ class _ARScanScreenState extends State<ARScanScreen>
       if (inputImage == null) return;
 
       final recognizedText = await _textRecognizer.processImage(inputImage);
+      if (recognizedText.text.trim().isNotEmpty) {
+        debugPrint('SCAN OCR: "${recognizedText.text.replaceAll('\n', ' | ')}"');
+      }
 
       MarkerModel? matchedMarker;
 
-      // Match against dynamically loaded keywords from CMS
       for (final block in recognizedText.blocks) {
         final text = block.text.toUpperCase();
         for (final marker in _dynamicMarkers) {
@@ -199,14 +297,22 @@ class _ARScanScreenState extends State<ARScanScreen>
       if (matchedMarker != null && mounted) {
         await _cameraController?.stopImageStream();
 
-        // 1. Fetch your user's stored Sanctum auth token from SharedPreferences
         final prefs = await SharedPreferences.getInstance();
         final String token = prefs.getString('auth_token') ?? '';
 
-        // 2. Pass matchedMarker.keyword and the real user token to Laravel
-        MarkerService.instance.logMarkerScan(matchedMarker.keyword, token);
+        final result = await MarkerService.instance.scanMarker(matchedMarker.keyword, token);
 
-        _triggerRandomPopup();
+        if (!mounted) return;
+
+        if (result == null) {
+          // Scan failed (network issue, marker no longer active, etc.)
+          // — just let the visitor try again rather than showing a
+          // dead-end error.
+          _restartScanning();
+          return;
+        }
+
+        _handleScanResult(result);
       }
     } catch (e) {
       debugPrint('Scan error: $e');
@@ -235,41 +341,43 @@ class _ARScanScreenState extends State<ARScanScreen>
     );
   }
 
-  // ─── SHUFFLE BAG RANDOMIZER ──────────────────────────────────
-  final List<String> _shuffleBag = [];
+  // ─── ROUTE THE SCAN RESULT ─────────────────────────────────────
+  void _handleScanResult(ScanResult result) {
+    switch (result.actionType) {
+      case 'info':
+        _showInfoOverlay(result.content);
+        break;
 
-  String _nextOption() {
-    if (_shuffleBag.isEmpty) {
-      _shuffleBag.addAll([
-        'trivia',
-        'number_match',
-        'color_puzzle',
-        'tictactoe',
-      ]);
-      _shuffleBag.shuffle(Random());
+      case 'specific_game':
+      case 'random_game':
+        if (result.game == null) {
+          // Shouldn't happen — backend falls back to 'info' when no
+          // game is eligible — but guard anyway rather than crash.
+          _showInfoOverlay(result.content);
+          return;
+        }
+        _showGameUnlockDialog(result.game!.gameType, result.content);
+        break;
+
+      default:
+        _showInfoOverlay(result.content);
     }
-    return _shuffleBag.removeLast();
   }
 
-  Future<void> _triggerRandomPopup() async {
-    final option = _nextOption();
-    _showSpecificGame(option);
-  }
-
-  void _showSpecificGame(String gameKey) {
-    final gameMap = {
-      'trivia':       _games[0],
-      'number_match': _games[1],
-      'color_puzzle': _games[2],
-      'tictactoe':    _games[3],
-    };
-    final selectedGame = gameMap[gameKey] ?? _games[0];
+  void _showGameUnlockDialog(String gameKey, ScanContent content) {
+    final selectedGame = _games[gameKey];
+    if (selectedGame == null) {
+      debugPrint('Unknown game_type from backend: $gameKey');
+      _restartScanning();
+      return;
+    }
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => _GameSelectionDialog(
         gameName: selectedGame.name,
+        introText: content.description,
         onStart: () {
           SoundManager.instance.playClick();
           Navigator.of(context).pop();
@@ -278,6 +386,23 @@ class _ARScanScreenState extends State<ARScanScreen>
           );
         },
         onRescan: () {
+          SoundManager.instance.playClick();
+          Navigator.of(context).pop();
+          _restartScanning();
+        },
+      ),
+    );
+  }
+
+  void _showInfoOverlay(ScanContent content) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _InfoDialog(
+        title: content.title ?? 'Marker Info',
+        description: content.description,
+        imageUrl: content.mediaType == 'image' ? content.mediaUrl : null,
+        onContinue: () {
           SoundManager.instance.playClick();
           Navigator.of(context).pop();
           _restartScanning();
@@ -442,11 +567,13 @@ class _ARScanScreenState extends State<ARScanScreen>
 // ═══════════════════════════════════════════════════════════════
 class _GameSelectionDialog extends StatefulWidget {
   final String gameName;
+  final String? introText;
   final VoidCallback onStart;
   final VoidCallback onRescan;
 
   const _GameSelectionDialog({
     required this.gameName,
+    this.introText,
     required this.onStart,
     required this.onRescan,
   });
@@ -562,6 +689,14 @@ class _GameSelectionDialogState extends State<_GameSelectionDialog> {
                 maxLines: 2, overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (widget.introText != null && widget.introText!.trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(widget.introText!,
+                style: const TextStyle(fontSize: 13, color: Colors.black54),
+                textAlign: TextAlign.center,
+                maxLines: 3, overflow: TextOverflow.ellipsis,
+              ),
+            ],
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -641,6 +776,103 @@ class _GameSelectionDialogState extends State<_GameSelectionDialog> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INFO OVERLAY DIALOG — shown for action_type == 'info'
+// ═══════════════════════════════════════════════════════════════
+class _InfoDialog extends StatelessWidget {
+  final String title;
+  final String? description;
+  final String? imageUrl;
+  final VoidCallback onContinue;
+
+  const _InfoDialog({
+    required this.title,
+    this.description,
+    this.imageUrl,
+    required this.onContinue,
+  });
+
+  static const _blue = Color(0xFF004A98);
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final dialogWidth = (screenWidth * 0.85).clamp(280.0, 400.0);
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        width: dialogWidth,
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _blue, width: 4),
+          boxShadow: [
+            BoxShadow(
+              color: _blue.withValues(alpha:0.3),
+              blurRadius: 20, spreadRadius: 5,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (imageUrl != null && imageUrl!.isNotEmpty) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  imageUrl!,
+                  height: 140,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+            Text(title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _blue),
+              textAlign: TextAlign.center,
+            ),
+            if (description != null && description!.trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(description!,
+                style: const TextStyle(fontSize: 14, color: Colors.black87),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onContinue,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: _blue,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: Text('CONTINUE SCANNING',
+                        style: TextStyle(color: Colors.white, fontSize: 15,
+                            fontWeight: FontWeight.bold, letterSpacing: 1),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
