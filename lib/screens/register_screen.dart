@@ -94,7 +94,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     '55+',
   ];
 
-  static const List<String> _genders = ['M', 'F', 'Non-binary'];
+  static const List<String> _genders = ['Male', 'Female', 'Prefer not to say'];
 
   @override
   void initState() {
@@ -188,7 +188,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         passwordConfirmation: password,
         region: _selectedRegion!,
         ageGroup: _selectedAgeGroup!,
-        gender: _selectedGender!,
+        sex: _selectedGender!,
       );
 
       if (!mounted) return;
@@ -498,7 +498,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           child: DropdownButton<String>(
                                             isExpanded: true,
                                             value: _selectedGender,
-                                            hint: Text('Gender', style: TextStyle(fontSize: l.fontSize(15), color: Colors.black54)),
+                                            hint: Text('Sex', style: TextStyle(fontSize: l.fontSize(15), color: Colors.black54)),
                                             items: _genders.map((g) => DropdownMenuItem(value: g, child: Text(g, style: TextStyle(fontSize: l.fontSize(14))))).toList(),
                                             onChanged: (val) => setState(() => _selectedGender = val),
                                           ),

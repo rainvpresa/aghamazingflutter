@@ -39,7 +39,7 @@ class AuthService {
     required String passwordConfirmation,
     required String region,
     required String ageGroup,
-    required String gender,
+    required String sex,
   }) async {
     try {
       final response = await http.post(
@@ -55,7 +55,7 @@ class AuthService {
           'password_confirmation': passwordConfirmation,
           'region': region,
           'age_group': ageGroup,
-          'gender': gender,
+          'sex': sex,
         }),
       );
 
