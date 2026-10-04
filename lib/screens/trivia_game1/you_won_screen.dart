@@ -3,6 +3,7 @@ import '../../services/trivia_game_manager.dart';
 import '../mainmenu_screen.dart';
 import 'main_trivia_screen.dart';
 import '../../services/game_service.dart';
+import '../../services/energy_gate.dart';
 
 class YouWonScreen extends StatefulWidget {
   final int totalPoints;
@@ -396,7 +397,9 @@ class _YouWonScreenState extends State<YouWonScreen>
                                 borderColor: const Color(0xFFE69600),
                                 screenW: screenW,
                                 screenH: screenH,
-                                onTap: () {
+                                onTap: () async {
+                                  if (!await EnergyGate.charge(context)) return;
+                                  if (!mounted) return;
                                   TriviaGameManager.instance.reset();
                                   Navigator.pushReplacement(
                                     context,

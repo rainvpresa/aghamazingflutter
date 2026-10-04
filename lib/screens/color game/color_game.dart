@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import '../../widgets/game_quit_handler.dart';
 import '../../services/game_service.dart';
+import '../../services/energy_gate.dart';
 
 class ColorPuzzleGame extends StatefulWidget {
   const ColorPuzzleGame({super.key});
@@ -394,7 +395,9 @@ class _ColorPuzzleGameState extends State<ColorPuzzleGame> with GameQuitHandler 
                               vPad:     ref * 0.032,
                               fontSize: ref * 0.038,
                               loading:  _isSavingRewards,
-                              onTap: _isSavingRewards ? null : () {
+                              onTap: _isSavingRewards ? null : () async {
+                                if (!await EnergyGate.charge(context)) return;
+                                if (!mounted) return;
                                 Navigator.pop(ctx);
                                 initializeGame();
                               },
