@@ -43,12 +43,14 @@ class TriviaService {
     int count = 10,
     String? category,
     String? difficulty,
+    int? categoryId,
   }) async {
     try {
       final queryParams = <String, String>{
         'count': count.toString(),
         if (category != null) 'category': category,
         if (difficulty != null) 'difficulty': difficulty,
+        if (categoryId != null) 'category_id': categoryId.toString(),
       };
 
       final uri = Uri.parse('${ApiConfig.baseUrl}/api/trivia')

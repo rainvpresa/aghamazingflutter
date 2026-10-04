@@ -17,8 +17,9 @@ class TriviaGameManager {
   int get correctAnswers => _correctAnswers;
   int get wrongAnswers => _wrongAnswers;
 
-  Future<void> loadAndStart({int count = 10}) async {
-    _questions = await TriviaService.instance.getRandomQuestions(count: count);
+  Future<void> loadAndStart({int count = 10, int? categoryId}) async {
+    _questions = await TriviaService.instance
+        .getRandomQuestions(count: count, categoryId: categoryId);
     _currentIndex = 0;
     _correctAnswers = 0;
     _wrongAnswers = 0;

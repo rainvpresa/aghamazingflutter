@@ -15,6 +15,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'color game/color_game.dart';
 import 'tictactoe_screen.dart';
 import 'gemgrab/gem_grab_game_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
 
 // ═══════════════════════════════════════════════════════════════
 // MODELS & SERVICES FOR DYNAMIC MARKERS
@@ -356,7 +359,8 @@ class _ARScanScreenState extends State<ARScanScreen>
           _showInfoOverlay(result.content);
           return;
         }
-        _showGameUnlockDialog(result.game!.gameType, result.content);
+        _showGameUnlockDialog(
+            result.game!.gameType, result.content, result.game!.categoryId);
         break;
 
       default:
@@ -364,7 +368,7 @@ class _ARScanScreenState extends State<ARScanScreen>
     }
   }
 
-  void _showGameUnlockDialog(String gameKey, ScanContent content) {
+  void _showGameUnlockDialog(String gameKey, ScanContent content, int? categoryId) {
     final selectedGame = _games[gameKey];
     if (selectedGame == null) {
       debugPrint('Unknown game_type from backend: $gameKey');
@@ -382,7 +386,11 @@ class _ARScanScreenState extends State<ARScanScreen>
           SoundManager.instance.playClick();
           Navigator.of(context).pop();
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: selectedGame.route),
+            MaterialPageRoute(
+              builder: gameKey == 'trivia'
+                  ? (_) => MainTriviaScreen(categoryId: categoryId)
+                  : selectedGame.route,
+            ),
           );
         },
         onRescan: () {
@@ -401,7 +409,8 @@ class _ARScanScreenState extends State<ARScanScreen>
       builder: (_) => _InfoDialog(
         title: content.title ?? 'Marker Info',
         description: content.description,
-        imageUrl: content.mediaType == 'image' ? content.mediaUrl : null,
+        imageUrl: (content.mediaType == 'image' || content.mediaType == 'gif') ? content.mediaUrl : null,
+        videoUrl: content.mediaType == 'video' ? content.mediaUrl : null,
         onContinue: () {
           SoundManager.instance.playClick();
           Navigator.of(context).pop();
@@ -785,25 +794,80 @@ class _GameSelectionDialogState extends State<_GameSelectionDialog> {
 // ═══════════════════════════════════════════════════════════════
 // INFO OVERLAY DIALOG — shown for action_type == 'info'
 // ═══════════════════════════════════════════════════════════════
-class _InfoDialog extends StatelessWidget {
+class _InfoDialog extends StatefulWidget {
   final String title;
   final String? description;
   final String? imageUrl;
+  final String? videoUrl;
   final VoidCallback onContinue;
 
   const _InfoDialog({
     required this.title,
     this.description,
     this.imageUrl,
+    this.videoUrl,
     required this.onContinue,
   });
 
+  @override
+  State<_InfoDialog> createState() => _InfoDialogState();
+}
+
+class _InfoDialogState extends State<_InfoDialog> {
   static const _blue = Color(0xFF004A98);
+
+  VideoPlayerController? _video;
+  ChewieController? _chewie;
+  bool _videoFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final url = widget.videoUrl;
+    if (url != null && url.isNotEmpty) _initVideo(url);
+  }
+
+  Future<void> _initVideo(String url) async {
+    try {
+      final controller = VideoPlayerController.networkUrl(Uri.parse(url));
+      await controller.initialize();
+      if (!mounted) {
+        controller.dispose();
+        return;
+      }
+      setState(() {
+        _video = controller;
+        _chewie = ChewieController(
+          videoPlayerController: controller,
+          autoPlay: false,
+          looping: false,
+          aspectRatio: controller.value.aspectRatio,
+          allowFullScreen: true,
+          deviceOrientationsOnEnterFullScreen: [
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ],
+          deviceOrientationsAfterFullScreen: [DeviceOrientation.portraitUp],
+        );
+      });
+    } catch (e) {
+      debugPrint('Video error: $e');
+      if (mounted) setState(() => _videoFailed = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _chewie?.dispose();
+    _video?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final dialogWidth = (screenWidth * 0.85).clamp(280.0, 400.0);
+    final hasVideo = widget.videoUrl != null && widget.videoUrl!.isNotEmpty;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -817,62 +881,79 @@ class _InfoDialog extends StatelessWidget {
           border: Border.all(color: _blue, width: 4),
           boxShadow: [
             BoxShadow(
-              color: _blue.withValues(alpha:0.3),
+              color: _blue.withValues(alpha: 0.3),
               blurRadius: 20, spreadRadius: 5,
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (imageUrl != null && imageUrl!.isNotEmpty) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  imageUrl!,
-                  height: 140,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_chewie != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AspectRatio(
+                    aspectRatio: _video!.value.aspectRatio,
+                    child: Chewie(controller: _chewie!),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            Text(title,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _blue),
-              textAlign: TextAlign.center,
-            ),
-            if (description != null && description!.trim().isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(description!,
-                style: const TextStyle(fontSize: 14, color: Colors.black87),
+                const SizedBox(height: 16),
+              ] else if (hasVideo && !_videoFailed) ...[
+                const SizedBox(
+                  height: 140,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                const SizedBox(height: 16),
+              ] else if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    widget.imageUrl!,
+                    height: 140,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              Text(widget.title,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _blue),
                 textAlign: TextAlign.center,
               ),
-            ],
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: onContinue,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: _blue,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Text('CONTINUE SCANNING',
-                        style: TextStyle(color: Colors.white, fontSize: 15,
-                            fontWeight: FontWeight.bold, letterSpacing: 1),
+              if (widget.description != null && widget.description!.trim().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(widget.description!,
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: widget.onContinue,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: _blue,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Text('CONTINUE SCANNING',
+                          style: TextStyle(color: Colors.white, fontSize: 15,
+                              fontWeight: FontWeight.bold, letterSpacing: 1),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

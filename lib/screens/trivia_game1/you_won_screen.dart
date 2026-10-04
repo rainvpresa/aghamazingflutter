@@ -6,7 +6,8 @@ import '../../services/game_service.dart';
 
 class YouWonScreen extends StatefulWidget {
   final int totalPoints;
-  const YouWonScreen({super.key, required this.totalPoints});
+  final int? categoryId;
+  const YouWonScreen({super.key, required this.totalPoints, this.categoryId});
 
   @override
   State<YouWonScreen> createState() => _YouWonScreenState();
@@ -400,8 +401,8 @@ class _YouWonScreenState extends State<YouWonScreen>
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
-                                        builder: (_) =>
-                                        const MainTriviaScreen()),
+                                        builder: (_) => MainTriviaScreen(
+                                            categoryId: widget.categoryId)),
                                   );
                                 },
                               ),

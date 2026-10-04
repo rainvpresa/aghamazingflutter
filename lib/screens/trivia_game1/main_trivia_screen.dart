@@ -7,7 +7,8 @@ import '../../widgets/game_quit_handler.dart';
 import 'you_won_screen.dart';
 
 class MainTriviaScreen extends StatefulWidget {
-  const MainTriviaScreen({super.key});
+  final int? categoryId;
+  const MainTriviaScreen({super.key, this.categoryId});
 
   @override
   State<MainTriviaScreen> createState() => _MainTriviaScreenState();
@@ -83,7 +84,8 @@ class _MainTriviaScreenState extends State<MainTriviaScreen>
 
   Future<void> _checkEnergyAndStartGame() async {
     try {
-      await TriviaGameManager.instance.loadAndStart(count: _totalQuestions);
+      await TriviaGameManager.instance
+          .loadAndStart(count: _totalQuestions, categoryId: widget.categoryId);
       if (!mounted) return;
 
       if (TriviaGameManager.instance.questions.isEmpty) {
@@ -178,7 +180,8 @@ class _MainTriviaScreenState extends State<MainTriviaScreen>
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => YouWonScreen(totalPoints: _totalPoints),
+        builder: (_) => YouWonScreen(
+            totalPoints: _totalPoints, categoryId: widget.categoryId),
       ),
     );
   }
