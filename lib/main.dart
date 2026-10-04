@@ -41,6 +41,24 @@ class MyApp extends StatelessWidget {
       navigatorObservers: [routeObserver],
       title: 'AGHAMazing',
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        const maxW = 480.0;
+        if (mq.size.width <= maxW) return child!;
+        return ColoredBox(
+          color: const Color(0xFF0D0D1A),
+          child: Center(
+            child: SizedBox(
+              width: maxW,
+              height: mq.size.height,
+              child: MediaQuery(
+                data: mq.copyWith(size: Size(maxW, mq.size.height)),
+                child: child!,
+              ),
+            ),
+          ),
+        );
+      },
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
