@@ -738,8 +738,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       case MessageType.bot:
         return _buildBotBubble(msg.text!, layout);
       case MessageType.categoryGrid:
-        if (msg.faqItem != null)
+        if (msg.faqItem != null) {
           return _buildActionButtons(msg.faqItem!, layout);
+        }
         return _buildCategoryGrid(layout);
       case MessageType.answerCard:
         return _buildQuestionList(msg.category!, layout);
