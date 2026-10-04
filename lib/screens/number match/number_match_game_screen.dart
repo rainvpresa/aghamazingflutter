@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../services/userprofile_service.dart';
 import '../../services/game_service.dart';
 import '../../widgets/game_quit_handler.dart';
+import '../../services/energy_manager.dart';
 
 /// Number Match - 2048-style puzzle game
 /// Swipe to merge matching numbers!
@@ -82,6 +83,39 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
     return List.generate(
       gridSize,
           (row) => List.generate(gridSize, (col) => null),
+    );
+  }
+
+  Future<void> _playAgainWithEnergy() async {
+    final hasEnergy = await EnergyManager.instance.hasEnoughEnergy(required: 10);
+    if (!mounted) return;
+    if (!hasEnergy) {
+      _showEnergyAlert('Not Enough Energy',
+          'You need 10 energy to play again. Wait for it to regenerate!');
+      return;
+    }
+    final ok = await EnergyManager.instance.useEnergy(amount: 10);
+    if (!mounted) return;
+    if (!ok) {
+      _showEnergyAlert('Error', 'Something went wrong. Please try again.');
+      return;
+    }
+    _startGame();
+  }
+
+  void _showEnergyAlert(String title, String msg) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(msg),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1251,7 +1285,7 @@ class _NumberMatchGameScreenState extends State<NumberMatchGameScreen>
                       Expanded(
                         child: _buildGameOverBtn(
                           'PLAY AGAIN', Icons.refresh_rounded,
-                          const Color(0xFF6d28d9), _startGame, w,
+                          const Color(0xFF6d28d9), _playAgainWithEnergy, w,
                         ),
                       ),
                       SizedBox(width: w * 0.04),

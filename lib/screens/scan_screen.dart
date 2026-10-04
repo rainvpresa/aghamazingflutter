@@ -177,7 +177,12 @@ class MarkerService {
 class GameRoute {
   final String name;
   final Widget Function(BuildContext) route;
-  GameRoute({required this.name, required this.route});
+  final bool chargesOwnEnergy;
+  GameRoute({
+    required this.name,
+    required this.route,
+    this.chargesOwnEnergy = false,
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -209,7 +214,7 @@ class _ARScanScreenState extends State<ARScanScreen>
     'color_puzzle':  GameRoute(name: 'Color Puzzle',      route: (_) => const ColorPuzzleGame()),
     'number_match':  GameRoute(name: 'Number Match',      route: (_) => const NumberMatchGameScreen()),
     'gem_grab':      GameRoute(name: 'Gem Grab',          route: (_) => const GemGrabGameScreen()),
-    'tic_tac_toe':   GameRoute(name: 'Tic Tac Toe',       route: (_) => const TicTacToeStartScreen()),
+    'tic_tac_toe':   GameRoute(name: 'Tic Tac Toe',       route: (_) => const TicTacToeStartScreen(), chargesOwnEnergy: true),
   };
 
   @override
@@ -382,6 +387,7 @@ class _ARScanScreenState extends State<ARScanScreen>
       builder: (_) => _GameSelectionDialog(
         gameName: selectedGame.name,
         introText: content.description,
+        chargesOwnEnergy: selectedGame.chargesOwnEnergy,
         onStart: () {
           SoundManager.instance.playClick();
           Navigator.of(context).pop();
@@ -579,12 +585,14 @@ class _GameSelectionDialog extends StatefulWidget {
   final String? introText;
   final VoidCallback onStart;
   final VoidCallback onRescan;
+  final bool chargesOwnEnergy;
 
   const _GameSelectionDialog({
     required this.gameName,
     this.introText,
     required this.onStart,
     required this.onRescan,
+    this.chargesOwnEnergy = false,
   });
 
   @override
@@ -614,6 +622,12 @@ class _GameSelectionDialogState extends State<_GameSelectionDialog> {
       }
 
       final success = await EnergyManager.instance.useEnergy(amount: 10);
+      // Tic Tac Toe charges its own 10 energy on its setup screen. The check
+      // above is enough here; deducting again would cost 20.
+      if (widget.chargesOwnEnergy) {
+        widget.onStart();
+        return;
+      }
 
       if (success) {
         widget.onStart();

@@ -644,15 +644,30 @@ class _TicTacToeGameScreenState extends State<TicTacToeGameScreen> {
     );
   }
 
-  void _again({required bool iWon, required bool isTie}) {
+  Future<void> _again({required bool iWon, required bool isTie}) async {
     if (isTie) {
-      // Tie → player chooses
+      // Tie → player chooses (setup screen charges 10 energy on PLAY)
       Navigator.pushReplacement(context,
           MaterialPageRoute(builder: (_) => const TicTacToeSetupScreen()));
       return;
     }
     if (iWon) {
-      // Player won → bot randomly assigns symbols, no setup screen
+      // Player won → no setup screen, but every play still costs 10 energy
+      final hasEnergy =
+      await EnergyManager.instance.hasEnoughEnergy(required: 10);
+      if (!mounted) return;
+      if (!hasEnergy) {
+        _showNoEnergy('Not Enough Energy',
+            'You need 10 energy to play again. Wait for it to regenerate!');
+        return;
+      }
+      final ok = await EnergyManager.instance.useEnergy(amount: 10);
+      if (!mounted) return;
+      if (!ok) {
+        _showNoEnergy('Error', 'Something went wrong. Please try again.');
+        return;
+      }
+
       final botIsX = _rng.nextBool();
       Navigator.pushReplacement(
         context,
@@ -664,7 +679,7 @@ class _TicTacToeGameScreenState extends State<TicTacToeGameScreen> {
         ),
       );
     } else {
-      // Player lost → player gets to choose
+      // Player lost → player chooses (setup screen charges 10 energy on PLAY)
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -672,6 +687,29 @@ class _TicTacToeGameScreenState extends State<TicTacToeGameScreen> {
         ),
       );
     }
+  }
+
+  void _showNoEnergy(String title, String msg) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1F2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(title,
+            style: const TextStyle(color: _C.white, fontFamily: 'LilitaOne')),
+        content: Text(msg, style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);          // close the alert
+              Navigator.of(context).pop(); // leave the finished game
+            },
+            child: const Text('OK', style: TextStyle(color: _C.xColor)),
+          ),
+        ],
+      ),
+    );
   }
 
   // ── BUILD ─────────────────────────────────────────────────────
