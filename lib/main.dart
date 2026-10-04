@@ -15,6 +15,7 @@ import 'services/auth_service.dart';
 import 'services/energy_manager.dart';
 import 'services/sound_manager.dart';
 import 'services/route_observer.dart';
+import 'dart:ui' as ui;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,21 +43,70 @@ class MyApp extends StatelessWidget {
       title: 'AGHAMazing',
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
+        return child!;
         final mq = MediaQuery.of(context);
-        const maxW = 480.0;
-        if (mq.size.width <= maxW) return child!;
-        return ColoredBox(
-          color: const Color(0xFF0D0D1A),
-          child: Center(
+
+        // Tablet in portrait: render on a virtual phone-width canvas and
+        // scale it up to fill the whole screen.
+        final isTabletPortrait =
+            mq.size.shortestSide >= 600 && mq.size.height > mq.size.width;
+        if (isTabletPortrait) {
+          const vw = 500.0;
+          final s = vw / mq.size.width;
+          final vh = mq.size.height * s;
+          return FittedBox(
+            fit: BoxFit.fill,
             child: SizedBox(
-              width: maxW,
-              height: mq.size.height,
+              width: vw,
+              height: vh,
               child: MediaQuery(
-                data: mq.copyWith(size: Size(maxW, mq.size.height)),
+                data: mq.copyWith(
+                  size: Size(vw, vh),
+                  padding: mq.padding * s,
+                  viewPadding: mq.viewPadding * s,
+                  viewInsets: mq.viewInsets * s,
+                ),
                 child: child!,
               ),
             ),
-          ),
+          );
+        }
+
+        const maxW = 480.0;
+        final maxH = maxW * 2.1;
+        if (mq.size.width <= maxW && mq.size.height <= maxH) return child!;
+        final w = mq.size.width < maxW ? mq.size.width : maxW;
+        final h = mq.size.height < maxH ? mq.size.height : maxH;
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: ImageFiltered(
+                imageFilter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                child: Image.asset(
+                  'assets/images/backgrounds/login_screen.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                  const ColoredBox(color: Colors.black),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: ColoredBox(color: Colors.black.withValues(alpha: 0.25)),
+            ),
+            Center(
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: SizedBox(
+                  width: 500,
+                  height: 800,
+                  child: MediaQuery(
+                    data: mq.copyWith(size: const Size(500, 800)),
+                    child: child!,
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
       },
       theme: ThemeData(

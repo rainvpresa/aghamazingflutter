@@ -267,6 +267,8 @@ class _ARScanScreenState extends State<ARScanScreen>
 
     try {
       await _cameraController?.initialize();
+      await _cameraController
+          ?.lockCaptureOrientation(DeviceOrientation.portraitUp);
       if (!mounted) return;
       setState(() => _isCameraInitialized = true);
       _cameraController?.startImageStream(_processCameraImage);

@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/sound_manager.dart';
 import 'fp_screen.dart';
 import 'register_screen.dart';
+import 'dart:math' as math;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -158,6 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Image.asset(
               _bg,
               fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
               errorBuilder: (_, __, ___) =>
                   Container(color: Colors.blue.shade200),
             ),
@@ -167,16 +169,25 @@ class _LoginScreenState extends State<LoginScreen> {
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final topOffset = constraints.maxHeight * 0.38;
+                final mq = MediaQuery.of(context);
+                // Photo is 1760x3824, drawn with cover + topCenter, so its
+                // rendered height depends on whichever side needs more scale.
+                final imgScale = math.max(
+                    mq.size.width / 1760, mq.size.height / 3824);
+                final topOffset = (3824 * imgScale * 0.31 - mq.padding.top)
+                    .clamp(0.0, constraints.maxHeight * 0.50);
 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SizedBox(height: topOffset),
-                      Center(
+                    padding: const EdgeInsets.symmetric(horizontal: 28.0),
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                        SizedBox(height: topOffset),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        child: Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 420),
                           child: Form(
@@ -185,6 +196,17 @@ class _LoginScreenState extends State<LoginScreen> {
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
+                                const Text(
+                                  "Let's get started!",
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 28),
+
                                 // Email
                                 TextFormField(
                                   controller: _emailCtl,
@@ -312,9 +334,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                        ],
+                    ),
                 );
               },
             ),

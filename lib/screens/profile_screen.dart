@@ -12,9 +12,11 @@ import 'login_screen.dart';
 // ─────────────────────────────────────────────
 class _Layout {
   final bool isShort;
+  final bool isTablet;
 
   _Layout(BuildContext context)
-      : isShort = MediaQuery.of(context).size.height < 750;
+      : isShort = MediaQuery.of(context).size.height < 750,
+        isTablet = MediaQuery.of(context).size.shortestSide >= 600;
 
   int get profileCardFlex => isShort ? 30 : 32;
   int get formCardFlex    => isShort ? 56 : 54;
@@ -444,7 +446,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       flex: l.profileCardFlex,
                       child: Padding(
                         padding: EdgeInsets.symmetric(
-                          horizontal: maxW * 0.06,
+                          horizontal: maxW * (l.isTablet ? 0.10 : 0.06),
                           vertical: l.vPad,
                         ),
                         child: Container(
@@ -508,9 +510,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       flex: l.formCardFlex,
                       child: Padding(
                         padding: EdgeInsets.fromLTRB(
-                          maxW * 0.06,
+                          maxW * (l.isTablet ? 0.10 : 0.06),
                           l.vPad,
-                          maxW * 0.06,
+                          maxW * (l.isTablet ? 0.10 : 0.06),
                           maxH * 0.025,
                         ),
                         child: Container(
@@ -520,12 +522,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             vertical: maxH * 0.016,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.95),
+                            color: const Color(0xFFFFF8E7),
+border: Border.all(color: const Color(0xFFFFA726), width: 3),
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
                                   color:
-                                  Colors.black.withValues(alpha: 0.10),
+                                  const Color(0xFFE08A00).withValues(alpha: 0.35),
                                   blurRadius: 16,
                                   offset: const Offset(0, 8))
                             ],
@@ -537,7 +540,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             MainAxisAlignment.spaceEvenly,
                             children: [
 
-                              // Full name field
+                              // Card header
+Row(
+  children: [
+    const Icon(Icons.badge_rounded, color: Color(0xFFE08A00)),
+    const SizedBox(width: 8),
+    Text(
+      'Account Details',
+      style: TextStyle(
+        fontFamily: 'LilitaOne',
+        fontSize: maxH * 0.024,
+        color: const Color(0xFF3B2A14),
+      ),
+    ),
+  ],
+),
+
+// Full name field
                               Column(
                                 crossAxisAlignment:
                                 CrossAxisAlignment.start,
@@ -553,13 +572,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     style: TextStyle(
                                         fontSize: maxH * 0.018),
                                     decoration: InputDecoration(
-                                      hintText: 'Your full name',
+                                      hintText: 'Your name',
                                       filled: true,
-                                      fillColor: Colors.grey.shade50,
+                                      fillColor: const Color(0xFFFFEFD0),
                                       border: OutlineInputBorder(
                                         borderRadius:
                                         BorderRadius.circular(12),
-                                        borderSide: BorderSide.none,
+                                        borderSide: BorderSide(color: Color(0xFFFFD59A), width: 1.5),
                                       ),
                                       contentPadding:
                                       EdgeInsets.symmetric(
@@ -590,17 +609,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           style: TextStyle(
                                               fontSize: maxH * 0.018),
                                           decoration: InputDecoration(
+                                            prefixIcon: const Icon(Icons.mail_outline_rounded),
                                             hintText:
                                             'your.email@example.com',
                                             filled: true,
                                             fillColor:
-                                            Colors.grey.shade50,
+                                            const Color(0xFFFFEFD0),
                                             border: OutlineInputBorder(
                                               borderRadius:
                                               BorderRadius.circular(
                                                   12),
                                               borderSide:
-                                              BorderSide.none,
+                                              BorderSide(color: Color(0xFFFFD59A), width: 1.5),
                                             ),
                                             contentPadding:
                                             EdgeInsets.symmetric(

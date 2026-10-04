@@ -13,6 +13,7 @@ import 'chatbot_screen.dart';
 import 'scan_screen.dart';
 import '../screens/gemgrab/gem_grab_game_screen.dart';
 import '../services/route_observer.dart';
+import 'dart:math' as math;
 
 class UiAssets {
   static Map<String, String>? _cache;
@@ -33,18 +34,31 @@ class UiAssets {
   static void clearCache() => _cache = null;
 }
 
+const String kMascotCaption =
+    "Say hello to Smarty the Mascot, your cheerful and helpful tour guide! "
+    "She'll be with you every step of the way.";
+
 class _Layout {
   final bool isShort;
+  final bool isTablet;
+  final double aspect;
 
   _Layout(BuildContext context)
-      : isShort = MediaQuery.of(context).size.height < 750;
+      : isShort = MediaQuery.of(context).size.height < 750,
+        isTablet =
+            MediaQueryData.fromView(View.of(context)).size.shortestSide >= 600,
+        aspect = MediaQueryData.fromView(View.of(context)).size.aspectRatio;
 
-  int get mascotFlex      => isShort ? 35 : 48;
-  int get leaderboardFlex => isShort ? 24 : 30;
+  // Tablet in a wide window (landscape, locked to portrait).
+  // Normal tablet portrait is ~0.62, this window is ~0.75.
+  bool get isWideTablet => isTablet && aspect > 0.70;
+  int get mascotFlex      => isTablet ? 42 : (isShort ? 35 : 48);
+  int get leaderboardFlex => isTablet ? 38 : (isShort ? 24 : 30);
 
   double get mascotTextBottom => isShort ? 0.85 : 0.80;
   double get topBarFraction    => isShort ? 0.06  : 0.05;
-  double get gemGrabFraction   => isShort ? 0.08  : 0.065;
+  double get gemGrabFraction =>
+      isTablet ? (isWideTablet ? 0.08 : 0.075) : (isShort ? 0.08 : 0.065);
   double get bottomPadFraction => isShort ? 0.002 : 0.005;
 }
 
@@ -181,15 +195,22 @@ class _MainMenuBodyState extends State<_MainMenuBody> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    final screenW = mq.size.width;
+    final real = MediaQueryData.fromView(View.of(context)).size;
+    final isTablet = real.shortestSide >= 600;
+    final screenW = math.min(
+      real.width,
+      real.height * (isTablet ? 0.58 : 0.46),
+    );
 
     final l = _Layout(context);
+    final bool t = l.isTablet;
+    final bool wide = l.isWideTablet;
+    final double bk = wide ? 1.25 : 1.0; // bigger buttons on wide tablets
 
     final double selectW  = screenW * 0.43;
-    final double profileW = screenW * 0.16;
-    final double chatW    = screenW * 0.16;
-    final double scanW    = screenW * 0.16;
+    final double profileW = screenW * 0.16 * bk;
+    final double chatW    = screenW * 0.16 * bk;
+    final double scanW    = screenW * 0.16 * bk;
     final double topIconW = screenW * 0.24;
 
     final double selectH  = selectW  * 0.30;
@@ -209,156 +230,133 @@ class _MainMenuBodyState extends State<_MainMenuBody> with RouteAware {
             child: Image.asset(MainMenuScreen.background, fit: BoxFit.cover),
           ),
           SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Column(
-                  children: [
+            child: Center(
+              child: SizedBox(
+                width: wide ? real.width : screenW,
+                height: double.infinity,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
 
-                    // ── Top stats row ──────────────────────────────
-                    SizedBox(
-                      height: constraints.maxHeight * l.topBarFraction,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: screenW * 0.02,
-                          vertical: constraints.maxHeight * 0.001,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
+                    final double bgScale = math.max(real.width / 1186, real.height / 2576);
+                    final double bgH     = 2576 * bgScale;
+                    final double woodY   = (real.height - bgH) / 2 + 0.555 * bgH;
+                    final double safeTop = MediaQueryData.fromView(View.of(context)).padding.top;
+                    final double topBarH = constraints.maxHeight * l.topBarFraction;
+                    final double tabletMascotH =
+                    (woodY - safeTop - topBarH).clamp(screenW * 0.7, screenW * 1.0);
+                    // ── Mascot area (bird + label + caption + buttons) ──
+                    final Widget mascotStack = LayoutBuilder(
+                      builder: (context, mc) {
+                        final double w = screenW;
+                        final double h = mc.maxHeight;
+                        final double capFont = t ? w * (wide ? 0.036 : 0.040) : w * (l.isShort ? 0.028 : 0.030);
+                        final double capBottom = t ? w * (wide ? 0.020 : 0.03) : h * 0.02;
+
+                        return Stack(
+                          clipBehavior: t ? Clip.none : Clip.hardEdge,
                           children: [
-                            Consumer<SessionService>(
-                              builder: (context, s, _) => IconStatButton(
-                                assetPath: asset('bubble_power'),
-                                width: topIconW,
-                                height: topIconH,
-                                value: s.bubblePower.toString(),
-                                onTap: () {
-                                  SoundManager.instance.playClick();
-                                  showStyledSnackBar(
-                                    context,
-                                    title: 'Bubble Power',
-                                    message: 'You have ${s.bubblePower} coins',
-                                    backgroundColor: const Color(0xFFF2C94C),
-                                    icon: Icons.star,
-                                    iconColor: Colors.white,
-                                  );
-                                },
-                                textStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                            // Bird
+                            if (t)
+                              Positioned(
+                                top: wide ? h * 0.10 : h * 0.04,
+                                left: wide ? (real.width - w * 0.96) / 2 : w * 0.02,
+                                width: w * 0.96,
+                                height: wide ? h * 0.74 : h * 0.80,
+                                child: _MascotAnimation(
+                                  asset: mascotAsset,
+                                  width: w * 0.96,
+                                  height: wide ? h * 0.74 : h * 0.80,
+                                  scale: wide ? 1.4 : 1.15,
                                 ),
-                              ),
-                            ),
-                            SizedBox(width: screenW * 0.025),
-                            Consumer<SessionService>(
-                              builder: (context, s, _) => IconStatButton(
-                                assetPath: asset('gems'),
-                                width: topIconW,
-                                height: topIconH,
-                                value: s.gems.toString(),
-                                onTap: () {
-                                  SoundManager.instance.playClick();
-                                  showStyledSnackBar(
-                                    context,
-                                    title: 'Gems',
-                                    message: 'You have ${s.gems} gems',
-                                    backgroundColor: const Color(0xFF6C5CE7),
-                                    icon: Icons.diamond,
-                                    iconColor: Colors.white,
-                                  );
-                                },
-                                textStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: screenW * 0.025),
-                            Consumer<SessionService>(
-                              builder: (context, s, _) => _EnergyDisplay(
-                                assetPath: asset('energy'),
-                                width: topIconW,
-                                height: topIconH,
-                                currentEnergy: s.energy,
-                                maxEnergy: _maxEnergy,
-                                timeLeft: _timeUntilNextRegen,
-                                onTap: () {
-                                  SoundManager.instance.playClick();
-                                  showStyledSnackBar(
-                                    context,
-                                    title: 'Energy',
-                                    message: s.energy < _maxEnergy
-                                        ? 'Next regen in: ${_formatTime(_timeUntilNextRegen)}'
-                                        : 'Energy is full!',
-                                    backgroundColor: const Color(0xFFE84393),
-                                    icon: Icons.bolt,
-                                    iconColor: Colors.white,
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // ── Mascot section ─────────────────────────────
-                    Expanded(
-                      flex: l.mascotFlex,
-                      child: LayoutBuilder(
-                        builder: (context, mascotConstraints) {
-                          return Stack(
-                            children: [
+                              )
+                            else
                               Center(
                                 child: SizedBox(
-                                  width: screenW * 0.94,
-                                  height: mascotConstraints.maxHeight * 0.95,
+                                  width: w * 0.94,
+                                  height: h * 0.95,
                                   child: _MascotAnimation(
                                     asset: mascotAsset,
-                                    width: screenW * 0.94,
-                                    height: mascotConstraints.maxHeight * 0.95,
+                                    width: w * 0.94,
+                                    height: h * 0.95,
                                     verticalNudge: -0.08,
                                     scale: 1.2,
                                   ),
                                 ),
                               ),
 
-                              Positioned(
-                                bottom: mascotConstraints.maxHeight * l.mascotTextBottom,
-                                left: screenW * -0.08,
-                                right: screenW * 0.40,
-                                child: Image.asset(
-                                  asset('smarty_header'),
-                                  fit: BoxFit.contain,
-                                  height: mascotConstraints.maxHeight * (l.isShort ? 0.18 : 0.20),
-                                ),
+                            // Mascot label (further left on tablet)
+                            Positioned(
+                              top: t ? (wide ? 0.0 : h * 0.01) : null,
+                              bottom: t ? null : h * l.mascotTextBottom,
+                              left: t ? (wide ? -w * 0.09 : -w * 0.10) : w * -0.08,
+                              right: t ? null : w * 0.40,
+                              child: Image.asset(
+                                asset('smarty_header'),
+                                fit: BoxFit.contain,
+                                width: t ? (wide ? w * 0.56 : w * 0.62) : null,
+                                height: t
+                                    ? null
+                                    : h * (l.isShort ? 0.18 : 0.20),
                               ),
+                            ),
 
-                              Positioned(
-                                bottom: mascotConstraints.maxHeight * (l.isShort ? 0.24 : 0.24),
-                                left: screenW * 0.04,
-                                child: ImageAssetButton(
-                                  assetPath: asset('btn_arscan'),
-                                  width: scanW,
-                                  height: scanH,
-                                  fill: true,
-                                  onTap: () {
-                                    SoundManager.instance.playClick();
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(builder: (_) => const ARScanScreen()),
-                                    );
-                                  },
-                                  fallbackWidget: const Icon(Icons.qr_code_scanner, color: Colors.white),
+                            // Caption as real text
+                            Positioned(
+                              left: wide ? w * 0.03 : null,
+                              bottom: capBottom,
+                              width: wide ? mc.maxWidth - selectW - w * 0.12 : w * (t ? 0.47 : 0.46),
+                              child: Text(
+                                kMascotCaption,
+                                maxLines: 5,
+                                style: TextStyle(
+                                  fontFamily: 'LilitaOne',
+                                  color: Colors.white,
+                                  fontSize: capFont,
+                                  height: 1.15,
+                                  shadows: const [
+                                    Shadow(offset: Offset(1.2, 1.2), color: Colors.black),
+                                    Shadow(offset: Offset(-1.2, 1.2), color: Colors.black),
+                                    Shadow(offset: Offset(1.2, -1.2), color: Colors.black),
+                                    Shadow(offset: Offset(-1.2, -1.2), color: Colors.black),
+                                  ],
                                 ),
                               ),
+                            ),
+
+                            // Scan
                               Positioned(
-                                right: screenW * 0.045,
-                                bottom: mascotConstraints.maxHeight * (l.isShort ? 0.16 : 0.16),
-                                child: Row(
+                                left: wide ? w * 0.10 : w * 0.02,
+                                bottom: t ? (wide ? w * 0.17 : w * 0.27) : h * 0.23,
+                                child: ImageAssetButton(
+                                assetPath: asset('btn_arscan'),
+                                width: scanW,
+                                height: scanH,
+                                fill: true,
+                                onTap: () {
+                                  SoundManager.instance.playClick();
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const ARScanScreen()),
+                                  );
+                                },
+                                fallbackWidget: const Icon(Icons.qr_code_scanner, color: Colors.white),
+                              ),
+                            ),
+
+                            // Profile + Chat
+                            Positioned(
+                              right: w * (wide ? 0.008 : 0.045),
+                              bottom: t ? w * 0.02 + selectH + w * 0.02 : h * 0.16,
+                              child: wide
+                                  ? Builder(builder: (_) {
+                                final double gap = w * 0.008;
+                                final double bw = selectW * 0.36; // was (selectW - 2 * gap) / 3 same total width as Coming Soon
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     ImageAssetButton(
                                       assetPath: asset('btn_profile'),
-                                      width: profileW,
-                                      height: profileH,
+                                      width: bw,
+                                      height: bw * 0.55,
                                       fill: true,
                                       onTap: () {
                                         SoundManager.instance.playClick();
@@ -368,11 +366,11 @@ class _MainMenuBodyState extends State<_MainMenuBody> with RouteAware {
                                       },
                                       fallbackWidget: const Icon(Icons.person, color: Colors.white),
                                     ),
-                                    SizedBox(width: screenW * 0.02),
+                                    SizedBox(width: gap),
                                     ImageAssetButton(
                                       assetPath: asset('btn_chatbot'),
-                                      width: chatW,
-                                      height: chatH,
+                                      width: bw,
+                                      height: bw * 0.55,
                                       fill: true,
                                       onTap: () {
                                         SoundManager.instance.playClick();
@@ -383,238 +381,381 @@ class _MainMenuBodyState extends State<_MainMenuBody> with RouteAware {
                                       fallbackWidget: const Icon(Icons.chat_bubble, color: Colors.white),
                                     ),
                                   ],
-                                ),
+                                );
+                              })
+                                  : Row(
+                                children: [
+                                  ImageAssetButton(
+                                    assetPath: asset('btn_profile'),
+                                    width: profileW,
+                                    height: profileH,
+                                    fill: true,
+                                    onTap: () {
+                                      SoundManager.instance.playClick();
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                                      );
+                                    },
+                                    fallbackWidget: const Icon(Icons.person, color: Colors.white),
+                                  ),
+                                  SizedBox(width: w * 0.02),
+                                  ImageAssetButton(
+                                    assetPath: asset('btn_chatbot'),
+                                    width: chatW,
+                                    height: chatH,
+                                    fill: true,
+                                    onTap: () {
+                                      SoundManager.instance.playClick();
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+                                      );
+                                    },
+                                    fallbackWidget: const Icon(Icons.chat_bubble, color: Colors.white),
+                                  ),
+                                ],
                               ),
+                            ),
 
-                              Positioned(
-                                right: screenW * 0.04,
-                                bottom: mascotConstraints.maxHeight * (l.isShort ? 0.02 : 0.03),
-                                child: ImageAssetButton(
-                                  assetPath: asset('btn_select'),
-                                  width: selectW,
-                                  height: selectH,
-                                  fill: true,
-                                  onTap: () {
+                            // Coming Soon
+                            Positioned(
+                              right: w * 0.04,
+                              bottom: t ? w * 0.02 : h * (l.isShort ? 0.02 : 0.03),
+                              child: ImageAssetButton(
+                                assetPath: asset('btn_select'),
+                                width: selectW,
+                                height: selectH,
+                                fill: true,
+                                onTap: () {
+                                  SoundManager.instance.playClick();
+                                  showStyledSnackBar(
+                                    context,
+                                    title: 'Future Shop',
+                                    message: 'Coins can be used here!',
+                                    backgroundColor: const Color(0xFF00B894),
+                                    icon: Icons.check_circle,
+                                    iconColor: Colors.white,
+                                  );
+                                },
+                                fallbackWidget: ElevatedButton(
+                                  onPressed: () {
                                     SoundManager.instance.playClick();
                                     showStyledSnackBar(
                                       context,
-                                      title: 'Future Shop',
-                                      message: 'Coins can be used here!',
+                                      title: 'Mascot Selected',
+                                      message: 'Smarty is now your active mascot!',
                                       backgroundColor: const Color(0xFF00B894),
                                       icon: Icons.check_circle,
                                       iconColor: Colors.white,
                                     );
                                   },
-                                  fallbackWidget: ElevatedButton(
-                                    onPressed: () {
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFf2c94c),
+                                  ),
+                                  child: const Text('SELECT'),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+
+                    final Widget mascotSection = t
+                        ? SizedBox(
+                      height: tabletMascotH,
+                      child: mascotStack,
+                    )
+                        : Expanded(flex: l.mascotFlex, child: mascotStack);
+                    final double lbW = wide ? screenW * 0.90 : screenW;
+
+                    return Column(
+                      children: [
+                        // ── Top stats row ──────────────────────────────
+                        SizedBox(
+                          height: constraints.maxHeight * l.topBarFraction,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: screenW * 0.02,
+                              vertical: constraints.maxHeight * 0.001,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: wide ? MainAxisAlignment.end : MainAxisAlignment.end,
+                              children: [
+                                Consumer<SessionService>(
+                                  builder: (context, s, _) => IconStatButton(
+                                    assetPath: asset('bubble_power'),
+                                    width: topIconW,
+                                    height: topIconH,
+                                    value: s.bubblePower.toString(),
+                                    onTap: () {
                                       SoundManager.instance.playClick();
                                       showStyledSnackBar(
                                         context,
-                                        title: 'Mascot Selected',
-                                        message: 'Smarty is now your active mascot!',
-                                        backgroundColor: const Color(0xFF00B894),
-                                        icon: Icons.check_circle,
+                                        title: 'Bubble Power',
+                                        message: 'You have ${s.bubblePower} coins',
+                                        backgroundColor: const Color(0xFFF2C94C),
+                                        icon: Icons.star,
                                         iconColor: Colors.white,
                                       );
                                     },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFf2c94c),
+                                    textStyle: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: screenW * 0.032,
                                     ),
-                                    child: const Text('SELECT'),
                                   ),
                                 ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-
-                    // ── Leaderboard section ────────────────────────
-                    Expanded(
-                      flex: l.leaderboardFlex,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: screenW * 0.020,
-                          vertical: constraints.maxHeight * 0.0025,
-                        ),
-                        child: Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.all(screenW * 0.015),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(6),
-                            image: asset('leaderboard_bg').isNotEmpty
-                                ? DecorationImage(
-                              image: AssetImage(asset('leaderboard_bg')),
-                              fit: BoxFit.cover,
-                            )
-                                : null,
-                            color: asset('leaderboard_bg').isEmpty
-                                ? Colors.black.withValues(alpha: 0.4)
-                                : null,
+                                SizedBox(width: screenW * 0.025),
+                                Consumer<SessionService>(
+                                  builder: (context, s, _) => IconStatButton(
+                                    assetPath: asset('gems'),
+                                    width: topIconW,
+                                    height: topIconH,
+                                    value: s.gems.toString(),
+                                    onTap: () {
+                                      SoundManager.instance.playClick();
+                                      showStyledSnackBar(
+                                        context,
+                                        title: 'Gems',
+                                        message: 'You have ${s.gems} gems',
+                                        backgroundColor: const Color(0xFF6C5CE7),
+                                        icon: Icons.diamond,
+                                        iconColor: Colors.white,
+                                      );
+                                    },
+                                    textStyle: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: screenW * 0.032,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: screenW * 0.025),
+                                Consumer<SessionService>(
+                                  builder: (context, s, _) => _EnergyDisplay(
+                                    assetPath: asset('energy'),
+                                    width: topIconW,
+                                    height: topIconH,
+                                    currentEnergy: s.energy,
+                                    maxEnergy: _maxEnergy,
+                                    timeLeft: _timeUntilNextRegen,
+                                    onTap: () {
+                                      SoundManager.instance.playClick();
+                                      showStyledSnackBar(
+                                        context,
+                                        title: 'Energy',
+                                        message: s.energy < _maxEnergy
+                                            ? 'Next regen in: ${_formatTime(_timeUntilNextRegen)}'
+                                            : 'Energy is full!',
+                                        backgroundColor: const Color(0xFFE84393),
+                                        icon: Icons.bolt,
+                                        iconColor: Colors.white,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.symmetric(vertical: screenW * 0.01),
-                                child: Row(
-                                  children: [
-                                    if (asset('leaderboard_emblem').isNotEmpty)
-                                      Image.asset(
-                                        asset('leaderboard_emblem'),
-                                        width: screenW * 0.11,
-                                        height: screenW * 0.11,
-                                      )
-                                    else
-                                      Container(
-                                        width: screenW * 0.11,
-                                        height: screenW * 0.11,
-                                        decoration: BoxDecoration(
-                                          color: Colors.amber,
-                                          shape: BoxShape.circle,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.amber.withValues(alpha:0.5),
-                                              blurRadius: 8,
-                                              spreadRadius: 2,
+                        ),
+
+                        // ── Mascot section ─────────────────────────────
+                        mascotSection,
+
+                        // ── Leaderboard section ────────────────────────
+                        Expanded(
+                          flex: l.leaderboardFlex,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: wide ? (constraints.maxWidth - screenW * 1.04) / 2 : lbW * 0.020,
+                              vertical: constraints.maxHeight * 0.0025,
+                            ),
+                            child: Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.all(lbW * 0.015),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6),
+                                image: asset('leaderboard_bg').isNotEmpty
+                                    ? DecorationImage(
+                                  image: AssetImage(asset('leaderboard_bg')),
+                                  fit: BoxFit.cover,
+                                  alignment: t ? Alignment.topCenter : Alignment.center,
+                                )
+                                    : null,
+                                color: asset('leaderboard_bg').isEmpty
+                                    ? Colors.black.withValues(alpha: 0.4)
+                                    : null,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(vertical: lbW * 0.01),
+                                    child: Row(
+                                      children: [
+                                        if (asset('leaderboard_emblem').isNotEmpty)
+                                          Image.asset(
+                                            asset('leaderboard_emblem'),
+                                            width: lbW * 0.11,
+                                            height: lbW * 0.11,
+                                          )
+                                        else
+                                          Container(
+                                            width: lbW * 0.11,
+                                            height: lbW * 0.11,
+                                            decoration: BoxDecoration(
+                                              color: Colors.amber,
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.amber.withValues(alpha: 0.5),
+                                                  blurRadius: 8,
+                                                  spreadRadius: 2,
+                                                ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
-                                        child: Icon(
-                                          Icons.emoji_events,
-                                          color: Colors.white,
-                                          size: screenW * 0.08,
-                                        ),
-                                      ),
-                                    const Spacer(),
-                                    Container(
-                                      width: screenW * 0.10,
-                                      height: screenW * 0.10,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF6C5CE7),
-                                        borderRadius: BorderRadius.circular(12),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFF6C5CE7).withValues(alpha:0.4),
-                                            blurRadius: 8,
-                                            spreadRadius: 2,
+                                            child: Icon(
+                                              Icons.emoji_events,
+                                              color: Colors.white,
+                                              size: lbW * 0.08,
+                                            ),
                                           ),
-                                        ],
-                                      ),
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          onTap: () {
-                                            SoundManager.instance.playClick();
-                                            _loadLeaderboard();
-                                          },
-                                          borderRadius: BorderRadius.circular(12),
-                                          child: Icon(
-                                            Icons.refresh,
-                                            color: Colors.white,
-                                            size: screenW * 0.065,
+                                        const Spacer(),
+                                        Container(
+                                          width: lbW * 0.10,
+                                          height: lbW * 0.10,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF6C5CE7),
+                                            borderRadius: BorderRadius.circular(12),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: const Color(0xFF6C5CE7).withValues(alpha: 0.4),
+                                                blurRadius: 8,
+                                                spreadRadius: 2,
+                                              ),
+                                            ],
+                                          ),
+                                          child: Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              onTap: () {
+                                                SoundManager.instance.playClick();
+                                                _loadLeaderboard();
+                                              },
+                                              borderRadius: BorderRadius.circular(12),
+                                              child: Icon(
+                                                Icons.refresh,
+                                                color: Colors.white,
+                                                size: lbW * 0.065,
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Expanded(
-                                child: _isLoadingLeaderboard
-                                    ? const Center(
-                                  child: CircularProgressIndicator(color: Colors.amber),
-                                )
-                                    : _leaderboardData.isEmpty
-                                    ? Center(
-                                  child: Text(
-                                    'No players yet!\nBe the first to play!',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: screenW * 0.035,
+                                      ],
                                     ),
                                   ),
-                                )
-                                     : ListView.builder(
-                                  padding: EdgeInsets.zero,
-                                  itemCount: _leaderboardData.length > 5 ? 5 : _leaderboardData.length, // Display top 5
-                                  itemBuilder: (context, index) {
-                                    final player = _leaderboardData[index];
-
-                                    return _LeaderboardItem(
-                                      rank: index + 1,
-                                      displayName: player['display_name'] ?? player['name'] ?? 'Anonymous',
-                                      score: player['total_score'] ?? player['coins'] ?? player['score'] ?? 0,
-                                      avatarPath: player['avatar']?['image_url'] ?? '',
-                                      itemBgAsset: asset('leaderboard_item_bg'),
-                                      rankBadgeAsset: asset('rank_${index + 1}_badge'),
-                                      rankLabelAsset: asset('rank_${index + 1}_label'),
-                                      screenWidth: screenW,
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // ── Gem Grab button ────────────────────────────
-                    SizedBox(
-                      height: constraints.maxHeight * l.gemGrabFraction,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: screenW * 0.015),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(maxWidth: screenW * 0.60),
-                            child: AspectRatio(
-                              aspectRatio: 983 / 278,
-                              child: asset('btn_gem_grab').isNotEmpty
-                                  ? ImageAssetButton(
-                                assetPath: asset('btn_gem_grab'),
-                                width: double.infinity,
-                                height: double.infinity,
-                                fill: true,
-                                onTap: () {
-                                  SoundManager.instance.playClick();
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const GemGrabGameScreen(),
+                                  Expanded(
+                                    child: _isLoadingLeaderboard
+                                        ? const Center(
+                                      child: CircularProgressIndicator(color: Colors.amber),
+                                    )
+                                        : _leaderboardData.isEmpty
+                                        ? Center(
+                                      child: Text(
+                                        'No players yet!\nBe the first to play!',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: lbW * 0.035,
+                                        ),
+                                      ),
+                                    )
+                                        : ListView.builder(
+                                      padding: EdgeInsets.zero,
+                                      itemCount: _leaderboardData.length > 5
+                                          ? 5
+                                          : _leaderboardData.length,
+                                      itemBuilder: (context, index) {
+                                        final player = _leaderboardData[index];
+                                        return _LeaderboardItem(
+                                          rank: index + 1,
+                                          displayName: player['display_name'] ??
+                                              player['name'] ??
+                                              'Anonymous',
+                                          score: player['total_score'] ??
+                                              player['coins'] ??
+                                              player['score'] ??
+                                              0,
+                                          avatarPath: player['avatar']?['image_url'] ?? '',
+                                          itemBgAsset: asset('leaderboard_item_bg'),
+                                          rankBadgeAsset: asset('rank_${index + 1}_badge'),
+                                          rankLabelAsset: asset('rank_${index + 1}_label'),
+                                          screenWidth: lbW,
+                                        );
+                                      },
                                     ),
-                                  );
-                                },
-                                fallbackWidget: const SizedBox.shrink(),
-                              )
-                                  : ElevatedButton(
-                                onPressed: () {
-                                  SoundManager.instance.playClick();
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const GemGrabGameScreen(),
-                                    ),
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.deepPurple,
-                                  minimumSize: const Size(double.infinity, 48),
-                                ),
-                                child: const Text('GEM GRAB'),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
 
-                    SizedBox(height: constraints.maxHeight * l.bottomPadFraction),
-                  ],
-                );
-              },
+                        // ── Gem Grab button ────────────────────────────
+                        SizedBox(
+                          height: constraints.maxHeight * l.gemGrabFraction,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: screenW * 0.015),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(maxWidth: screenW * (wide ? 0.66 : 0.60)),
+                                child: AspectRatio(
+                                  aspectRatio: 983 / 278,
+                                  child: asset('btn_gem_grab').isNotEmpty
+                                      ? ImageAssetButton(
+                                    assetPath: asset('btn_gem_grab'),
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    fill: true,
+                                    onTap: () {
+                                      SoundManager.instance.playClick();
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => const GemGrabGameScreen(),
+                                        ),
+                                      );
+                                    },
+                                    fallbackWidget: const SizedBox.shrink(),
+                                  )
+                                      : ElevatedButton(
+                                    onPressed: () {
+                                      SoundManager.instance.playClick();
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => const GemGrabGameScreen(),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.deepPurple,
+                                      minimumSize: const Size(double.infinity, 48),
+                                    ),
+                                    child: const Text('GEM GRAB'),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        SizedBox(height: constraints.maxHeight * l.bottomPadFraction),
+                      ],
+                    );
+                  },
+                ),
+              ),
             ),
           ),
         ],

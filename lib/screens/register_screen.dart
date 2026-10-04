@@ -3,6 +3,7 @@ import 'login_screen.dart';
 import '../services/auth_service.dart';
 import '../services/sound_manager.dart';
 import '../widgets/terms_dialog.dart';
+import 'dart:math' as math;
 
 // ─────────────────────────────────────────────
 //  LAYOUT HELPER
@@ -289,11 +290,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     return Scaffold(
       body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              _bg,
-              fit: BoxFit.fill,
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  _bg,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
               errorBuilder: (_, __, ___) =>
                   Container(color: Colors.blue.shade200),
             ),
@@ -301,11 +303,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
+                final mq = MediaQuery.of(context);
+                // "Create an account" is baked into the artwork at a fixed
+                // fraction of screen height (BoxFit.fill). Start the form
+                // just below it. Tune 0.37 if needed.
+                final imgScale = math.max(
+                    mq.size.width / 1760, mq.size.height / 3824);
+                final formTop = (3824 * imgScale * 0.30 - mq.padding.top)
+                    .clamp(0.0, constraints.maxHeight * 0.50);
                 return Column(
                   children: [
-                    Expanded(flex: l.topFlex, child: const SizedBox()),
+                    SizedBox(height: formTop),
                     Expanded(
-                      flex: l.contentFlex,
                       child: SingleChildScrollView(
                         physics: const ClampingScrollPhysics(),
                         child: Padding(
@@ -313,6 +322,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              Text(
+                                'Create an account',
+                                style: TextStyle(
+                                  fontSize: l.fontSize(26),
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              SizedBox(height: l.sectionGap + 6),
+
                               // Nickname
                               _buildPillField(
                                 touched: _nickTouched,
@@ -609,8 +628,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               },
             ),
           ),
-        ],
-      ),
+            ],
+          ),
     );
   }
 }

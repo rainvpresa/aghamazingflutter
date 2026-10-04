@@ -35,7 +35,8 @@ class _Layout {
   double r(double value) => value * (screenWidth / 360);
 
   double sp(double value) {
-    final scale = (screenWidth / 360).clamp(0.8, 1.4);
+    final maxScale = isTablet ? 2.0 : 1.4;
+    final scale = (screenWidth / 360).clamp(0.8, maxScale);
     return value * scale;
   }
 
@@ -44,6 +45,14 @@ class _Layout {
   double get hPad => r(16).clamp(12.0, 32.0);
 
   double get bubbleMaxWidth => screenWidth * 0.72;
+
+  // Tablet = shortest side >= 600dp (works in portrait & landscape)
+  bool get isTablet =>
+      (screenWidth < screenHeight ? screenWidth : screenHeight) >= 600;
+
+  double rt(double value) => isTablet ? value * 1.8 : r(value);
+
+  double spt(double value) => isTablet ? value * 2.0 : sp(value);
 }
 
 // ─────────────────────────────────────────────
@@ -311,6 +320,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
   bool _isTyping = false;
+  bool _showBanner = true;
 
   List<FaqCategory> _faqCategories = [];
   bool _isLoadingFaq = true;
@@ -571,7 +581,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       appBar: _buildAppBar(layout),
       body: Column(
         children: [
-          _buildAdvisoryBanner(layout),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: _showBanner
+                ? _buildAdvisoryBanner(layout)
+                : const SizedBox(width: double.infinity),
+          ),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -594,15 +611,16 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   PreferredSizeWidget _buildAppBar(_Layout layout) {
-    final avatarSize = layout.r(38);
-    final iconSize = layout.r(22);
+    final avatarSize = layout.rt(38);
+    final iconSize = layout.rt(22);
 
     return AppBar(
       backgroundColor: kYaleBlue,
       foregroundColor: kWhite,
       elevation: 0,
+      toolbarHeight: layout.isTablet ? 100 : kToolbarHeight,
       leading: IconButton(
-        icon: Icon(Icons.arrow_back_ios_new_rounded, size: layout.r(20)),
+        icon: Icon(Icons.arrow_back_ios_new_rounded, size: layout.rt(20)),
         onPressed: () {
           SoundManager.instance.playClick(); // 🔊
           Navigator.of(context).maybePop();
@@ -620,7 +638,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             ),
             child: ClipOval(
               child: Padding(
-                padding: EdgeInsets.all(layout.r(6)),
+                padding: EdgeInsets.all(layout.rt(6)),
                 child: Icon(
                   Icons.support_agent_rounded,
                   color: kYaleBlue,
@@ -629,14 +647,15 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               ),
             ),
           ),
-          SizedBox(width: layout.r(10)),
+          SizedBox(width: layout.rt(10)),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
                 'Smarty Bird',
                 style: TextStyle(
-                  fontSize: layout.sp(15),
+                  fontSize: layout.spt(15),
                   fontWeight: FontWeight.w700,
                   color: kWhite,
                 ),
@@ -644,18 +663,18 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               Row(
                 children: [
                   Container(
-                    width: layout.r(7),
-                    height: layout.r(7),
+                    width: layout.rt(7),
+                    height: layout.rt(7),
                     decoration: const BoxDecoration(
                       color: Color(0xFF4ADE80),
                       shape: BoxShape.circle,
                     ),
                   ),
-                  SizedBox(width: layout.r(4)),
+                  SizedBox(width: layout.rt(4)),
                   Text(
                     'Online',
                     style: TextStyle(
-                      fontSize: layout.sp(11),
+                      fontSize: layout.spt(11),
                       color: const Color(0xFFBFD9F5),
                     ),
                   ),
@@ -667,27 +686,27 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       ),
       actions: [
         Padding(
-          padding: EdgeInsets.only(right: layout.r(8)),
+          padding: EdgeInsets.only(right: layout.rt(8)),
           child: TextButton.icon(
             onPressed: _showFeedbackModal,
             icon: Icon(
               Icons.star_rounded,
-              size: layout.r(18),
+              size: layout.rt(18),
               color: const Color(0xFFFFD54F),
             ),
             label: Text(
               'Rate us',
               style: TextStyle(
-                fontSize: layout.sp(13),
+                fontSize: layout.spt(13),
                 fontWeight: FontWeight.w700,
                 color: kWhite,
               ),
             ),
             style: TextButton.styleFrom(
               backgroundColor: Colors.white.withValues(alpha: 0.15),
-              padding: EdgeInsets.symmetric(horizontal: layout.r(10)),
+              padding: EdgeInsets.symmetric(horizontal: layout.rt(10)),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(layout.r(20)),
+                borderRadius: BorderRadius.circular(layout.rt(20)),
               ),
             ),
           ),
@@ -697,34 +716,58 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   Widget _buildAdvisoryBanner(_Layout layout) {
-    return Container(
+    return Material(
       color: const Color(0xFFFFF8E1),
-      padding: EdgeInsets.symmetric(
-        horizontal: layout.hPad,
-        vertical: layout.r(8),
-      ),
       child: Row(
         children: [
-          Icon(
-            Icons.campaign_rounded,
-            size: layout.r(16),
-            color: const Color(0xFFF59E0B),
-          ),
-          SizedBox(width: layout.r(8)),
+          // Tapping the message opens the website
           Expanded(
-            child: Text(
-              'Visit stii.dost.gov.ph for the latest S&T news and updates.',
-              style: TextStyle(
-                fontSize: layout.sp(12),
-                color: const Color(0xFF92400E),
-                fontWeight: FontWeight.w500,
+            child: InkWell(
+              onTap: () {
+                SoundManager.instance.playClick(); // 🔊
+                _launchUrl(kStiiWebsiteUrl);
+              },
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: layout.hPad,
+                  top: layout.rt(8),
+                  bottom: layout.rt(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.campaign_rounded,
+                      size: layout.rt(16),
+                      color: const Color(0xFFF59E0B),
+                    ),
+                    SizedBox(width: layout.rt(8)),
+                    Expanded(
+                      child: Text(
+                        'Visit stii.dost.gov.ph for the latest S&T news and updates.',
+                        style: TextStyle(
+                          fontSize: layout.spt(12),
+                          color: const Color(0xFF92400E),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-          Icon(
-            Icons.chevron_right_rounded,
-            size: layout.r(16),
-            color: const Color(0xFFF59E0B),
+          // Close button
+          IconButton(
+            onPressed: () {
+              SoundManager.instance.playClick(); // 🔊
+              setState(() => _showBanner = false);
+            },
+            icon: Icon(
+              Icons.close_rounded,
+              size: layout.rt(18),
+              color: const Color(0xFF92400E),
+            ),
+            tooltip: 'Dismiss',
           ),
         ],
       ),
@@ -1084,7 +1127,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           "Sure! Here are our main topics. How can I help you?",
           animate: false,
         );
-        Future.delayed(const Duration(milliseconds: 200), () {
+        Future.delayed(const Duration(milliseconds: 2200), () {
           if (!mounted) return;
           setState(() {
             _messages.add(ChatMessage(type: MessageType.categoryGrid));
