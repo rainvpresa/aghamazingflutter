@@ -665,7 +665,34 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           ),
         ],
       ),
-      actions: const [],
+      actions: [
+        Padding(
+          padding: EdgeInsets.only(right: layout.r(8)),
+          child: TextButton.icon(
+            onPressed: _showFeedbackModal,
+            icon: Icon(
+              Icons.star_rounded,
+              size: layout.r(18),
+              color: const Color(0xFFFFD54F),
+            ),
+            label: Text(
+              'Rate us',
+              style: TextStyle(
+                fontSize: layout.sp(13),
+                fontWeight: FontWeight.w700,
+                color: kWhite,
+              ),
+            ),
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.white.withValues(alpha: 0.15),
+              padding: EdgeInsets.symmetric(horizontal: layout.r(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(layout.r(20)),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1351,7 +1378,7 @@ class _FeedbackModalState extends State<_FeedbackModal> {
                     ),
                   ),
                   Text(
-                    'Help us improve DOST-STII\'s chatbot',
+                    'Help us improve AGHAMazing Quest!',
                     style: TextStyle(
                       fontSize: layout.sp(12),
                       color: Colors.grey,
